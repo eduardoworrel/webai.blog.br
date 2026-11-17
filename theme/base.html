@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="$lang">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>$title</title>
+<meta name="description" content="$description">
+<link rel="canonical" href="$canonical">
+<meta property="og:title" content="$og_title">
+<meta property="og:description" content="$description">
+<meta property="og:type" content="$og_type">
+<meta property="og:url" content="$canonical">$og_image
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="${root}favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="${root}style.css">
+<link rel="alternate" type="application/rss+xml" title="$site_title" href="${root}feed.xml">
+</head>
+<body>
+<header class="topo">
+<a class="marca" href="${root}index.html">$site_title</a>
+<nav><a href="${root}sobre.html">Sobre</a> <a href="${root}feed.xml">RSS</a></nav>
+</header>
+<main>
+$content
+</main>
+<footer class="rodape">
+<p><a href="${root}feed.xml">RSS</a> · <a href="https://github.com/eduardoworrel/webai.blog.br/blob/main/CONTRIBUTING.md">Escreva um post</a></p>
+</footer>
+</body>
+</html>
