@@ -1,0 +1,6 @@
+# Configuração do site. A URL é usada só no feed RSS, no sitemap e nas tags canônicas.
+title = "webai.blog.br"
+url = "https://webai.blog.br"
+description = "Notas sobre modelos que rodam no navegador."
+author = "Eduardo Worrel"
+lang = "pt-BR"
