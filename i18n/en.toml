@@ -1,0 +1,33 @@
+name = "English"
+og_locale = "en_US"
+about_page = "about"
+months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+date = "{month} {day}, {year}"
+description = "Notes on models that run in the browser."
+
+[ui]
+posts = "Posts"
+about = "About"
+gh_aria = "State of the Art of WebAI on GitHub"
+write = "Write a post"
+map = "Contribute to the map"
+empty = "No posts yet."
+tagline = "Models that run in the browser: what was tested, how it was measured and what worked or didn't."
+also = "Also in {langs}"
+switch_aria = "Read this page in English"
+translation_link = "Read in English"
+only_other = ["1 post available only in another language:", "{n} posts available only in other languages:"]
+nf_title = "Page not found"
+nf_text = "The address does not exist or has moved."
+nf_back = "Back to the home page"
+
+[labels]
+read = "min read"
+by = "By"
+share = "Share"
+toc = "In this article"
+related = "Keep reading"
+md = "Markdown"
+mail = "Email"
+copy = "Copy link"
+copied = "Link copied"

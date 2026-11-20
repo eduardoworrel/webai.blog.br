@@ -33,18 +33,54 @@ OUT = ROOT / "public"
 
 FILENAME_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$")
 REQUIRED = ("title", "date", "description")
-OPTIONAL = ("lang", "cover", "translation", "authors", "category")  # translation: slug do mesmo post em outra língua
-LANGS = ("pt-BR", "en")
-OTHER = {"pt-BR": "en", "en": "pt-BR"}
-DEFAULT_LANG = "pt-BR"
-LANG_PREFIX = {"pt-BR": "", "en": "en/"}  # PT na raiz (URLs antigas intactas), EN em /en/
-OG_LOCALE = {"pt-BR": "pt_BR", "en": "en_US"}
+OPTIONAL = ("lang", "cover", "translation", "authors", "category")  # translation: slug(s) do mesmo post em outras línguas, separados por vírgula
+I18N: dict[str, dict] = {}        # código -> dicionário de i18n/<código>.toml
+LANGS: list[str] = []             # idiomas do site, na ordem do site.toml; o primeiro é o padrão
+DEFAULT_LANG = ""
+LANG_PREFIX: dict[str, str] = {}  # padrão na raiz (URLs antigas intactas); os outros em /<idioma>/, ex. en/, es/
+
+
+def load_i18n() -> dict:
+    """Lê site.toml e i18n/<idioma>.toml; devolve a configuração do site e preenche as tabelas de idiomas."""
+    global DEFAULT_LANG
+    site = tomllib.loads((ROOT / "site.toml").read_text(encoding="utf-8"))
+    site["url"] = site["url"].rstrip("/")
+    langs = site.get("languages") or ["pt-BR"]
+    LANGS[:] = langs
+    DEFAULT_LANG = langs[0]
+    I18N.clear()
+    LANG_PREFIX.clear()
+    for code in langs:
+        f = ROOT / "i18n" / f"{code}.toml"
+        if not f.is_file():
+            raise BuildError(f"site.toml: falta o dicionário i18n/{code}.toml")
+        d = tomllib.loads(f.read_text(encoding="utf-8"))
+        ref = I18N.get(langs[0]) or d
+        for sec in ("ui", "labels"):
+            miss = set(ref[sec]) - set(d.get(sec, {}))
+            if miss:
+                raise BuildError(f"i18n/{code}.toml: faltam em [{sec}]: {', '.join(sorted(miss))}")
+        I18N[code] = d
+        LANG_PREFIX[code] = "" if code == DEFAULT_LANG else code.split("-")[0].lower() + "/"
+        if not (PAGES / f"{d['about_page']}.md").is_file():
+            raise BuildError(f"i18n/{code}.toml: falta pages/{d['about_page']}.md")
+    if len(set(LANG_PREFIX.values())) != len(langs):
+        raise BuildError("site.toml: dois idiomas com o mesmo prefixo de URL")
+    return site
+
+
+def UI(lang: str) -> dict:
+    return I18N[lang]["ui"]
+
+
+def labels(lang: str) -> dict:
+    return I18N[lang]["labels"]
+
+
 IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 MAX_IMAGE_BYTES = 400 * 1024
 MAX_POST_IMAGES_BYTES = 3 * 1024 * 1024
 MAX_DESCRIPTION = 200
-MESES = ("janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho",
-         "agosto", "setembro", "outubro", "novembro", "dezembro")
 
 
 class BuildError(Exception):
@@ -61,7 +97,8 @@ class Post:
     lang: str
     cover: str | None
     body_md: str
-    translation: str | None = None
+    translations: list[str] = field(default_factory=list)  # slugs das outras versões do mesmo post
+    versions: dict = field(default_factory=dict)  # idioma -> Post, com todas as versões do post (inclusive esta)
     authors: str = ""
     category: str = ""
     toc: list = field(default_factory=list)
@@ -128,7 +165,7 @@ def load_post(path: Path) -> Post:
         raise BuildError(f"{where}: date ({meta['date']}) difere da data no nome do arquivo ({file_date})")
     if len(meta["description"]) > MAX_DESCRIPTION:
         raise BuildError(f"{where}: description passa de {MAX_DESCRIPTION} caracteres")
-    lang = meta.get("lang") or "pt-BR"
+    lang = meta.get("lang") or DEFAULT_LANG
     if lang not in LANGS:
         raise BuildError(f"{where}: lang precisa ser um de {', '.join(LANGS)}")
 
@@ -139,7 +176,8 @@ def load_post(path: Path) -> Post:
 
     return Post(source=path, slug=slug, title=meta["title"], date=post_date,
                 description=meta["description"], lang=lang, cover=meta.get("cover") or None,
-                body_md=body, translation=meta.get("translation") or None,
+                body_md=body,
+                translations=[t.strip() for t in meta.get("translation", "").split(",") if t.strip()],
                 authors=meta.get("authors", ""), category=meta.get("category", ""))
 
 
@@ -157,16 +195,23 @@ def load_posts() -> list[Post]:
             errors.append(f"slug repetido '{p.slug}': {slugs[p.slug].source.name} e {p.source.name}")
         slugs[p.slug] = p
     for p in posts:
-        if not p.translation:
+        if p.lang not in LANGS:
+            errors.append(f"{p.source.name}: lang '{p.lang}' não está em languages do site.toml ({', '.join(LANGS)})")
             continue
-        other = slugs.get(p.translation)
-        if other is None:
-            errors.append(f"{p.source.name}: translation aponta para um slug que não existe: '{p.translation}'")
-        elif other.lang == p.lang:
-            errors.append(f"{p.source.name}: a tradução '{p.translation}' está na mesma língua ({p.lang})")
-        elif other.translation != p.slug:
-            errors.append(f"{p.source.name}: a tradução precisa ser recíproca: {other.source.name} "
-                          f"deve ter 'translation: {p.slug}'")
+        group = {p.slug, *p.translations}
+        members = [slugs.get(sl) for sl in sorted(group)]
+        if None in members:
+            missing = sorted(sl for sl in group if sl not in slugs)
+            errors.append(f"{p.source.name}: translation aponta para slug que não existe: {', '.join(missing)}")
+            continue
+        if len({m.lang for m in members}) != len(members):
+            errors.append(f"{p.source.name}: duas versões do post na mesma língua ({', '.join(m.slug for m in members)})")
+            continue
+        for m in members:
+            if {m.slug, *m.translations} != group:
+                errors.append(f"{p.source.name}: as traduções precisam ser recíprocas: {m.source.name} deve ter "
+                              f"'translation: {', '.join(sorted(group - {m.slug}))}'")
+        p.versions = {m.lang: m for m in members}
     if errors:
         raise BuildError("\n".join(errors))
     posts.sort(key=lambda p: (p.date, p.slug), reverse=True)
@@ -288,45 +333,23 @@ def check_post_assets(post: Post) -> list[str]:
     return errors
 
 
-def data_br(d: date) -> str:
-    return f"{d.day} de {MESES[d.month - 1]} de {d.year}"
-
-
-MONTHS_EN = ("January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
-             "November", "December")
-LINK_TRADUCAO = {"pt-BR": "Leia em português", "en": "Read in English", "es": "Leer en español"}
-
-
 def data_post(post: Post) -> str:
-    if post.lang == "en":
-        return f"{MONTHS_EN[post.date.month - 1]} {post.date.day}, {post.date.year}"
-    return data_br(post.date)
+    d, I = post.date, I18N[post.lang]
+    return I["date"].format(day=d.day, month=I["months"][d.month - 1], year=d.year)
 
 
-UI = {
-    "pt-BR": dict(
-        posts="Posts", about="Sobre", about_page="sobre", gh_aria="State of the Art of WebAI no GitHub",
-        write="Escreva um post", map="Contribua com o mapa", empty="Nenhum post ainda.",
-        tagline="Modelos que rodam no navegador: o que foi testado, como foi medido e o que deu certo ou não.",
-        also="Também em English", switch="English", switch_aria="Read this page in English",
-        only_other=("1 post disponível só em inglês.", "{n} posts disponíveis só em inglês."), see_other="Ver em English",
-        nf_title="Página não encontrada", nf_text="O endereço não existe ou mudou.", nf_back="Voltar para o início",
-        translation_link="Leia em português", lang_name="Português"),
-    "en": dict(
-        posts="Posts", about="About", about_page="about", gh_aria="State of the Art of WebAI on GitHub",
-        write="Write a post", map="Contribute to the map", empty="No posts yet.",
-        tagline="Models that run in the browser: what was tested, how it was measured and what worked or didn't.",
-        also="Also in Português", switch="Português", switch_aria="Ler esta página em português",
-        only_other=("1 post available only in Portuguese.", "{n} posts available only in Portuguese."), see_other="Ver em português",
-        nf_title="Page not found", nf_text="The address does not exist or has moved.", nf_back="Back to the home page",
-        translation_link="Read in English", lang_name="English"),
-}
 GH_ICON = ('<svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>')
 
 
 def file_of(path: str) -> str:
     """Caminho canônico ("", "en/", "x.html") -> arquivo gerado em public/."""
     return path + "index.html" if path == "" or path.endswith("/") else path
+
+
+def hreflang_pairs(alts: dict[str, str]) -> list[tuple[str, str]]:
+    """[(hreflang, caminho)] na ordem do site.toml, mais o x-default (versão no idioma padrão, ou a primeira que existir)."""
+    pairs = [(hl, alts[hl]) for hl in LANGS if hl in alts]
+    return pairs + [("x-default", alts.get(DEFAULT_LANG) or pairs[0][1])]
 
 
 @dataclass
@@ -355,29 +378,29 @@ class Theme:
 
     def page(self, *, title: str, description: str, content: str, path: str, lang: str,
              og_type: str = "website", image: str | None = None, absolute: bool = False,
-             alternates: dict[str, str] | None = None, switch: str | None = None) -> str:
-        """path: caminho canônico (""; "en/"; "slug.html"). alternates: {idioma: caminho} incluindo a própria página."""
-        site, ui, ctx = self.site, UI[lang], Ctx(lang, absolute)
+             alternates: dict[str, str] | None = None, switch: list[tuple[str, str]] | None = None) -> str:
+        """path: caminho canônico (""; "en/"; "slug.html").
+        alternates: {idioma: caminho} das versões existentes, incluindo a própria página (hreflang recíproco).
+        switch: [(idioma, caminho)] do seletor de idioma: só idiomas com a página equivalente ou a home."""
+        site, ui, ctx = self.site, UI(lang), Ctx(lang, absolute)
         full_title = site["title"] if title == site["title"] else f"{title} · {site['title']}"
         canonical = f"{site['url']}/{path}"
         og_image = f'\n<meta property="og:image" content="{html.escape(site["url"] + "/" + image)}">' if image else ""
         hreflang, og_alt = "", ""
         if alternates and len(alternates) > 1:
-            tags = [f'<link rel="alternate" hreflang="{hl}" href="{html.escape(site["url"] + "/" + pth)}">'
-                    for hl, pth in sorted(alternates.items(), key=lambda kv: kv[0] != DEFAULT_LANG)]
-            tags.append(f'<link rel="alternate" hreflang="x-default" href="{html.escape(site["url"] + "/" + alternates[DEFAULT_LANG])}">')
-            hreflang = "\n" + "\n".join(tags)
-            og_alt = "".join(f'\n<meta property="og:locale:alternate" content="{OG_LOCALE[hl]}">'
-                             for hl in alternates if hl != lang)
-        other = OTHER[lang]
-        switch = switch if switch is not None else LANG_PREFIX[other]  # sem tradução: a home do outro idioma
+            hreflang = "\n" + "\n".join(
+                f'<link rel="alternate" hreflang="{hl}" href="{html.escape(site["url"] + "/" + pth)}">'
+                for hl, pth in hreflang_pairs(alternates))
+            og_alt = "".join(f'\n<meta property="og:locale:alternate" content="{I18N[hl]["og_locale"]}">'
+                             for hl in LANGS if hl in alternates and hl != lang)
         feed = ctx.link(f"{LANG_PREFIX[lang]}feed.xml")
+        pick = "".join(f'<a class="idioma" href="{ctx.link(pth)}" hreflang="{hl}" lang="{hl}" '
+                       f'aria-label="{html.escape(UI(hl)["switch_aria"])}">{html.escape(I18N[hl]["name"])}</a>'
+                       for hl, pth in (switch or []))
         nav = (f'<a href="{ctx.link(LANG_PREFIX[lang])}">{ui["posts"]}</a>'
                f'<a href="https://webai.blog.br/state-of-the-art/">State of the Art</a>'
-               f'<a href="{ctx.link(LANG_PREFIX[lang] + ui["about_page"] + ".html")}">{ui["about"]}</a>'
-               f'<a href="{feed}">RSS</a>'
-               f'<a class="idioma" href="{ctx.link(switch)}" hreflang="{other}" lang="{other}" '
-               f'aria-label="{ui["switch_aria"]}">{ui["switch"]}</a>'
+               f'<a href="{ctx.link(LANG_PREFIX[lang] + I18N[lang]["about_page"] + ".html")}">{ui["about"]}</a>'
+               f'<a href="{feed}">RSS</a>{pick}'
                f'<a class="gh" href="https://github.com/eduardoworrel/state-of-the-art-webai" '
                f'aria-label="{ui["gh_aria"]}" title="{ui["gh_aria"]}">{GH_ICON}</a>')
         footer = (f'<a href="{feed}">RSS</a> · <a href="https://github.com/eduardoworrel/webai.blog.br/blob/main/CONTRIBUTING.md">'
@@ -385,30 +408,21 @@ class Theme:
         return self.base.substitute(
             lang=lang, title=html.escape(full_title), og_title=html.escape(title),
             description=html.escape(description), canonical=html.escape(canonical), og_type=og_type,
-            og_locale=OG_LOCALE[lang], og_alt=og_alt, hreflang=hreflang, og_image=og_image,
+            og_locale=I18N[lang]["og_locale"], og_alt=og_alt, hreflang=hreflang, og_image=og_image,
             site_title=html.escape(site["title"]), home=ctx.link(LANG_PREFIX[lang]), nav=nav, footer=footer,
             feed=feed, root=ctx.root, content=content)
 
 
-LABELS = {
-    "pt-BR": dict(read="min de leitura", by="Por", share="Compartilhar", toc="Neste artigo", related="Continue lendo",
-                  all="Todos os posts", md="Markdown", mail="E-mail", recent="Posts", copy="Copiar link", copied="Link copiado"),
-    "en": dict(read="min read", by="By", share="Share", toc="In this article", related="Keep reading",
-               all="All posts", md="Markdown", mail="Email", recent="Posts", copy="Copy link", copied="Link copied"),
-}
-
-
-def labels(lang: str) -> dict:
-    return LABELS["en"] if lang == "en" else LABELS["pt-BR"]
-
-
-def render_index(posts: list[Post], lang: str, ctx: Ctx, site: dict, only_other: int = 0) -> str:
-    ui = UI[lang]
+def render_index(posts: list[Post], lang: str, ctx: Ctx, site: dict, elsewhere: dict[str, int] | None = None) -> str:
+    """elsewhere: {idioma: nº de posts que existem só naquele idioma e não neste}."""
+    ui = UI(lang)
     L = labels(lang)
     note = ""
-    if only_other:
-        note = (f'<p class="nota-idioma" lang="{OTHER[lang]}">{ui["only_other"][only_other > 1].format(n=only_other)} '
-                f'<a href="{ctx.link(LANG_PREFIX[OTHER[lang]])}" hreflang="{OTHER[lang]}">{ui["see_other"]}</a></p>\n')
+    n = sum((elsewhere or {}).values())
+    if n:
+        links = " · ".join(f'<a href="{ctx.link(LANG_PREFIX[o])}" hreflang="{o}" lang="{o}">{html.escape(I18N[o]["name"])}</a>'
+                           for o in LANGS if (elsewhere or {}).get(o))
+        note = f'<p class="nota-idioma">{ui["only_other"][n > 1].format(n=n)} {links}</p>\n'
     hero = f'<section class="capa"><h1>{html.escape(site["title"])}</h1><p>{ui["tagline"]}</p></section>\n'
     if not posts:
         return hero + note + f'<p class="vazio">{ui["empty"]}</p>'
@@ -416,7 +430,8 @@ def render_index(posts: list[Post], lang: str, ctx: Ctx, site: dict, only_other:
     for p in posts:
         cat = f'<span class="tag">{html.escape(p.category)}</span>' if p.category else ""
         cover = (f'<img src="{ctx.link(LANG_PREFIX[p.lang] + p.slug + "/" + p.cover)}" alt="" loading="lazy">' if p.cover else "")
-        also = f'<span class="tambem" lang="{OTHER[lang]}">{ui["also"]}</span>' if p.translation else ""
+        outras = [I18N[o]["name"] for o in LANGS if o in p.versions and o != lang]
+        also = f'<span class="tambem">{html.escape(ui["also"].format(langs=", ".join(outras)))}</span>' if outras else ""
         cards.append(
             f'<a class="cartao" href="{ctx.link(p.path)}">{cover}<div class="corpo">{cat}'
             f'<h2>{html.escape(p.title)}</h2><p>{html.escape(p.description)}</p>'
@@ -444,40 +459,23 @@ def render_toc(post: Post) -> str:
     return f'<nav class="toc" aria-label="{L["toc"]}"><p>{L["toc"]}</p><ol>{items}</ol></nav>'
 
 
-def figure_html(fid: str, img: str, label: str, caption: str, cls: str = "") -> str:
-    """Figura com legenda; clicar/tocar amplia (CSS puro: o <a> aponta para #z-<id>, que o :target mostra em tela cheia)."""
-    big = re.sub(r'\s+loading="lazy"', ' loading="lazy" decoding="async"', img)
-    lab = f"<b>{label}</b>" if label else ""
-    return (f'<figure id="{fid}"{f" class={chr(34)}{cls}{chr(34)}" if cls else ""}>'
-            f'<a class="amplia" href="#z-{fid}">{img}</a>'
-            f'<figcaption>{lab}<span>{caption}</span></figcaption>'
-            f'<a class="zoom" id="z-{fid}" href="#{fid}" aria-label="Fechar / Close">{big}<span>{caption}</span></a></figure>')
-
-
-def zoom_figures(body: str) -> str:
-    return re.sub(r'<figure id="(fig-[a-z])">(<img [^>]+>)<figcaption><b>([^<]*)</b><span>(.*?)</span></figcaption></figure>',
-                  lambda m: figure_html(m.group(1), m.group(2), m.group(3), m.group(4)), body, flags=re.S)
-
-
-def render_post(post: Post, other: Post | None = None, site: dict | None = None, posts: list[Post] | None = None,
-                ctx: Ctx | None = None) -> str:
+def render_post(post: Post, site: dict | None = None, posts: list[Post] | None = None, ctx: Ctx | None = None) -> str:
     ctx = ctx or Ctx(post.lang)
     L = labels(post.lang)
-    trad = (f'<a href="{ctx.link(other.path)}" hreflang="{other.lang}" lang="{other.lang}">{UI[other.lang]["translation_link"]}</a>'
-            if other else "")
+    trad = " ".join(f'<a href="{ctx.link(o.path)}" hreflang="{o.lang}" lang="{o.lang}">{UI(o.lang)["translation_link"]}</a>'
+                    for lang_, o in sorted(post.versions.items(), key=lambda kv: LANGS.index(kv[0])) if o is not post)
     cat = f'<span class="tag">{html.escape(post.category)}</span>' if post.category else ""
     autores = f'<span>{L["by"]} <b>{html.escape(post.authors)}</b></span>' if post.authors else ""
     meta = " ".join(x for x in (autores, f'<time datetime="{post.date.isoformat()}">{data_post(post)}</time>',
                                 f'<span>{post.minutes} {L["read"]}</span>', trad) if x)
     cover = ""
     body = post.body_html
-    m = re.match(r'\s*<figure id="fig-a">(<img [^>]+>)<figcaption><b>[^<]*</b><span>(.*?)</span>', body, flags=re.S)
+    m = re.match(r'\s*<figure id="fig-a">(<img [^>]+>)', body)
     if m and post.cover and post.cover in m.group(1):
-        cover = figure_html("hero", m.group(1), "", m.group(2), "capa-img")
+        cover = f'<div class="capa-img">{m.group(1)}</div>'
         body = re.sub(r'^\s*<figure id="fig-a">.*?</figure>\s*', "", body, count=1, flags=re.S)
         body = re.sub(r'<b>FIG ([B-Z])</b>', lambda mm: f'<b>FIG {chr(ord(mm.group(1)) - 1)}</b>', body)
         body = re.sub(r'id="fig-([b-z])"', lambda mm: f'id="fig-{chr(ord(mm.group(1)) - 1)}"', body)
-    body = zoom_figures(body)
     related = ""
     if posts:
         outros = [p for p in posts if p.slug != post.slug and p.lang == post.lang]
@@ -514,7 +512,7 @@ def rss(site: dict, posts: list[Post], lang: str) -> str:
         )
     last = format_datetime(datetime(posts[0].date.year, posts[0].date.month, posts[0].date.day, 12,
                                     tzinfo=timezone.utc)) if posts else None
-    desc = site["description_en"] if lang == "en" and site.get("description_en") else site["description"]
+    desc = I18N[lang].get("description") or site["description"]
     return (
         '<?xml version="1.0" encoding="utf-8"?>\n'
         '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">\n<channel>\n'
@@ -537,9 +535,8 @@ def sitemap(site: dict, entries: list[tuple[str, date | None, dict[str, str]]]) 
         mod = f"<lastmod>{lastmod.isoformat()}</lastmod>" if lastmod else ""
         links = ""
         if len(alts) > 1:
-            pairs = [(hl, alts[hl]) for hl in sorted(alts, key=lambda k: k != DEFAULT_LANG)] + [("x-default", alts[DEFAULT_LANG])]
             links = "".join(f'<xhtml:link rel="alternate" hreflang="{hl}" href="{html.escape(site["url"] + "/" + pth)}"/>'
-                            for hl, pth in pairs)
+                            for hl, pth in hreflang_pairs(alts))
         urls.append(f"  <url><loc>{html.escape(site['url'] + '/' + path)}</loc>{mod}{links}</url>")
     return (
         '<?xml version="1.0" encoding="utf-8"?>\n'
@@ -549,17 +546,13 @@ def sitemap(site: dict, entries: list[tuple[str, date | None, dict[str, str]]]) 
     )
 
 
-PAGE_FILES = {"pt-BR": "sobre", "en": "about"}  # pages/sobre.md <-> pages/about.md
-
-
 def load_page(name: str) -> tuple[dict[str, str], str]:
     path = PAGES / f"{name}.md"
     return split_front_matter(path.read_text(encoding="utf-8"), str(path.relative_to(ROOT)))
 
 
 def build() -> list[Post]:
-    site = tomllib.loads((ROOT / "site.toml").read_text(encoding="utf-8"))
-    site["url"] = site["url"].rstrip("/")
+    site = load_i18n()
     posts = load_posts()
     errors: list[str] = []
     for p in posts:
@@ -584,44 +577,56 @@ def build() -> list[Post]:
     def write(name: str, text: str) -> None:
         (OUT / name).write_text(text, encoding="utf-8")
 
-    by_slug = {p.slug: p for p in posts}
     sm: list[tuple[str, date | None, dict[str, str]]] = []
     homes = {lang: LANG_PREFIX[lang] for lang in LANGS}
-    page_paths = {lang: f"{LANG_PREFIX[lang]}{UI[lang]['about_page']}.html" for lang in LANGS}
+    abouts = {lang: f"{LANG_PREFIX[lang]}{I18N[lang]['about_page']}.html" for lang in LANGS}
+    with_posts = {lang for lang in LANGS if any(p.lang == lang for p in posts)}
+
+    def switch_for(lang: str, equivalent: dict[str, str], fallback: dict[str, str]) -> list[tuple[str, str]]:
+        """Seletor: cada outro idioma com a página equivalente; sem ela, a home do idioma se ele tiver posts."""
+        out = []
+        for o in LANGS:
+            if o == lang:
+                continue
+            if o in equivalent:
+                out.append((o, equivalent[o]))
+            elif o in with_posts:
+                out.append((o, fallback[o]))
+        return out
 
     for lang in LANGS:
         ctx = Ctx(lang)
         mine = [p for p in posts if p.lang == lang]
-        only_other = sum(1 for p in posts if p.lang == OTHER[lang] and not p.translation)
-        desc = site["description_en"] if lang == "en" and site.get("description_en") else site["description"]
+        elsewhere = {o: sum(1 for p in posts if p.lang == o and lang not in p.versions) for o in LANGS if o != lang}
+        desc = I18N[lang].get("description") or site["description"]
         write(file_of(homes[lang]), theme.page(title=site["title"], description=desc, lang=lang, path=homes[lang],
-                                               content=render_index(mine, lang, ctx, site, only_other), alternates=homes))
+                                               content=render_index(mine, lang, ctx, site, elsewhere), alternates=homes,
+                                               switch=switch_for(lang, homes, homes)))
         sm.append((homes[lang], mine[0].date if mine else None, homes))
         write(f"{LANG_PREFIX[lang]}feed.xml", rss(site, mine, lang))
 
         for p in mine:
-            other = by_slug.get(p.translation) if p.translation else None
-            alts = {p.lang: p.path, other.lang: other.path} if other else None
+            alts = {l: v.path for l, v in p.versions.items()}
             write(p.path, theme.page(title=p.title, description=p.description, lang=lang, path=p.path,
-                                     content=render_post(p, other, site, posts, ctx), og_type="article",
+                                     content=render_post(p, site, posts, ctx), og_type="article",
                                      image=f"{LANG_PREFIX[lang]}{p.slug}/{p.cover}" if p.cover else None,
-                                     alternates=alts, switch=other.path if other else None))
+                                     alternates=alts, switch=switch_for(lang, alts, homes)))
             write(f"{LANG_PREFIX[lang]}{p.slug}.md", p.source.read_text(encoding="utf-8"))
             folder = POSTS / p.slug
             if folder.is_dir():
                 shutil.copytree(folder, OUT / LANG_PREFIX[lang] / p.slug, ignore=shutil.ignore_patterns(".DS_Store"))
-            sm.append((p.path, p.date, alts or {}))
+            sm.append((p.path, p.date, alts))
 
-        meta, body = load_page(PAGE_FILES[lang])
-        default_title = UI[lang]["about"]
-        write(page_paths[lang], theme.page(title=meta.get("title", default_title), description=meta.get("description", ""),
-                                           lang=lang, path=page_paths[lang], alternates=page_paths,
-                                           content=f"<article>\n<h1>{html.escape(meta.get('title', default_title))}</h1>\n"
-                                                   f"{md_to_html(body)}\n</article>"))
-        sm.append((page_paths[lang], None, page_paths))
-        ui = UI[lang]
+        ui = UI(lang)
+        meta, body = load_page(I18N[lang]["about_page"])
+        title = meta.get("title", ui["about"])
+        write(abouts[lang], theme.page(title=title, description=meta.get("description", ""), lang=lang, path=abouts[lang],
+                                       alternates=abouts, switch=switch_for(lang, abouts, abouts),
+                                       content=f"<article>\n<h1>{html.escape(title)}</h1>\n{md_to_html(body)}\n</article>"))
+        sm.append((abouts[lang], None, abouts))
         write(f"{LANG_PREFIX[lang]}404.html", theme.page(
             title=ui["nf_title"], description=ui["nf_title"], lang=lang, path=f"{LANG_PREFIX[lang]}404.html", absolute=True,
+            switch=switch_for(lang, homes, homes),
             content=f'<article>\n<h1>{ui["nf_title"]}</h1>\n<p>{ui["nf_text"]} '
                     f'<a href="{"/" + LANG_PREFIX[lang]}">{ui["nf_back"]}</a>.</p>\n</article>'))
     write("sitemap.xml", sitemap(site, sm))

@@ -1,0 +1,35 @@
+# Dicionário do idioma. Para criar outro idioma: copie este arquivo para i18n/<código>.toml, traduza os valores
+# (as chaves e os {marcadores} ficam como estão), crie pages/<about_page>.md e inclua o código em `languages` no site.toml.
+name = "Português"            # nome do idioma, escrito no próprio idioma (aparece no seletor)
+og_locale = "pt_BR"           # og:locale (idioma_PAÍS)
+about_page = "sobre"          # pages/sobre.md vira /sobre.html (nos outros idiomas, /<idioma>/sobre.html)
+months = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
+date = "{day} de {month} de {year}"
+description = "Notas sobre modelos que rodam no navegador."
+
+[ui]
+posts = "Posts"
+about = "Sobre"
+gh_aria = "State of the Art of WebAI no GitHub"
+write = "Escreva um post"
+map = "Contribua com o mapa"
+empty = "Nenhum post ainda."
+tagline = "Modelos que rodam no navegador: o que foi testado, como foi medido e o que deu certo ou não."
+also = "Também em {langs}"                     # selo no cartão; {langs} = nomes dos outros idiomas do post
+switch_aria = "Ler esta página em português"   # aria-label do link que leva a ESTE idioma
+translation_link = "Leia em português"         # link no cabeçalho de um post que tem versão neste idioma
+only_other = ["1 post disponível só em outro idioma:", "{n} posts disponíveis só em outros idiomas:"]
+nf_title = "Página não encontrada"
+nf_text = "O endereço não existe ou mudou."
+nf_back = "Voltar para o início"
+
+[labels]
+read = "min de leitura"
+by = "Por"
+share = "Compartilhar"
+toc = "Neste artigo"
+related = "Continue lendo"
+md = "Markdown"
+mail = "E-mail"
+copy = "Copiar link"
+copied = "Link copiado"

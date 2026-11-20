@@ -3,5 +3,4 @@ title = "webai.blog.br"
 url = "https://webai.blog.br"
 description = "Notas sobre modelos que rodam no navegador."
 author = "Eduardo Worrel"
-lang = "pt-BR"
-description_en = "Notes on models that run in the browser."
+languages = ["pt-BR", "en", "es"]  # o primeiro é o padrão (na raiz); os outros ficam em /en/, /es/ ...

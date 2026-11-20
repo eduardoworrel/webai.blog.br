@@ -1,0 +1,33 @@
+name = "Español"
+og_locale = "es_ES"
+about_page = "acerca-de"
+months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+date = "{day} de {month} de {year}"
+description = "Notas sobre modelos que se ejecutan en el navegador."
+
+[ui]
+posts = "Artículos"
+about = "Acerca de"
+gh_aria = "State of the Art of WebAI en GitHub"
+write = "Escribe un artículo"
+map = "Contribuye al mapa"
+empty = "Todavía no hay artículos."
+tagline = "Modelos que se ejecutan en el navegador: qué se probó, cómo se midió y qué funcionó o no."
+also = "También en {langs}"
+switch_aria = "Leer esta página en español"
+translation_link = "Leer en español"
+only_other = ["1 artículo disponible solo en otro idioma:", "{n} artículos disponibles solo en otros idiomas:"]
+nf_title = "Página no encontrada"
+nf_text = "La dirección no existe o ha cambiado."
+nf_back = "Volver al inicio"
+
+[labels]
+read = "min de lectura"
+by = "Por"
+share = "Compartir"
+toc = "En este artículo"
+related = "Sigue leyendo"
+md = "Markdown"
+mail = "Correo"
+copy = "Copiar enlace"
+copied = "Enlace copiado"

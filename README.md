@@ -8,7 +8,8 @@ Sem JavaScript, um único CSS, tema claro (tokens do tema da comunidade, fonte F
 ```
 posts/AAAA-MM-DD-slug.md   um post (front matter + Markdown)
 posts/slug/                imagens do post
-pages/sobre.md, about.md   página "Sobre" / "About"
+pages/*.md                 página "Sobre" de cada idioma
+i18n/<idioma>.toml         textos da interface de cada idioma
 theme/base.html            molde HTML de todas as páginas
 theme/style.css            o único CSS
 site.toml                  título, URL e descrição do site
@@ -30,21 +31,17 @@ O site também abre direto do disco (`public/index.html`): todos os links são r
 Saída em `public/`: `index.html` (posts em português, do mais novo ao mais antigo), `<slug>.html` para cada post
 (as imagens vão para `<slug>/`), `sobre.html`, `404.html`, `feed.xml` (RSS 2.0), `sitemap.xml`, `robots.txt`,
 `style.css` e `favicon.svg`. A versão em inglês vive em `en/` com a mesma estrutura (`en/index.html`,
-`en/<slug>.html`, `en/about.html`, `en/404.html`, `en/feed.xml`).
+`en/<slug>.html`, `en/about.html`, `en/404.html`, `en/feed.xml`), e o mesmo para `es/`.
 
-## Dois idiomas
+## Idiomas
 
-Português (`lang: pt-BR`, padrão) na raiz e inglês (`lang: en`) em `/en/`. Um post traduzido é um par de arquivos ligados
-por `translation: <slug do outro>` (recíproco, validado pelo `build.py check`); o gerador mostra um item por post em cada
-página inicial e feed, liga os dois com o seletor de idioma e emite `canonical` próprio, `hreflang` recíproco
-(`pt-BR`, `en`, `x-default`), `<html lang>`, `og:locale` e `xhtml:link` no sitemap. Todo o texto da interface está no
-dicionário `UI` de `build.py`. Passo a passo para autores em [CONTRIBUTING.md](CONTRIBUTING.md#post-com-tradução-português-e-inglês).
-
-## Figuras
-
-Capa e figuras do corpo ocupam 60% da largura do conteúdo no desktop (largura toda no celular), nunca são recortadas
-e sempre cabem na altura da janela (`max-height` em `vh`). Clicar ou tocar abre a imagem ampliada, em CSS puro
-(`:target`). O tamanho se ajusta em `--fig-largura` e `--fig-reserva` no topo da seção de figuras de `theme/style.css`.
+Os idiomas ficam em `languages` no `site.toml` (hoje `pt-BR`, `en`, `es`; o primeiro é o padrão, na raiz, e os outros
+em `/en/`, `/es/`). Cada um tem um dicionário `i18n/<código>.toml` (interface, meses, formato de data) e uma página
+Sobre em `pages/`. Um post traduzido é um conjunto de arquivos ligados por `translation: <slugs das outras versões>`
+(recíproco, validado pelo `build.py check`); o gerador mostra um item por post em cada página inicial e feed, liga as
+versões com o seletor de idioma e emite `canonical` próprio, `hreflang` recíproco (mais `x-default`), `<html lang>`,
+`og:locale` e `xhtml:link` no sitemap. Como escrever um post traduzido e como adicionar um idioma:
+[CONTRIBUTING.md](CONTRIBUTING.md#post-com-tradução-português-inglês-e-espanhol).
 
 ## Por que Python + markdown-it-py
 
