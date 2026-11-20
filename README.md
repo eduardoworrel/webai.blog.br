@@ -1,7 +1,7 @@
 # webai.blog.br
 
 Blog simples e estático. Cada post é um arquivo Markdown em `posts/`, proposto por pull request.
-Sem JavaScript, um único CSS, tema claro (tokens do tema da comunidade, fonte Figtree servida pelo próprio site).
+Sem JavaScript, um único CSS, tema claro (tokens do tema da comunidade, fonte Atkinson Hyperlegible (Next e Mono) servida pelo próprio site).
 
 ## Estrutura
 
