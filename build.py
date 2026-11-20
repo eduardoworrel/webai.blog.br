@@ -399,6 +399,7 @@ class Theme:
                        for hl, pth in (switch or []))
         nav = (f'<a href="{ctx.link(LANG_PREFIX[lang])}">{ui["posts"]}</a>'
                f'<a href="https://webai.blog.br/state-of-the-art/">State of the Art</a>'
+               f'<a href="https://webai.blog.br/observatorio/">Observatório</a>'
                f'<a href="{ctx.link(LANG_PREFIX[lang] + I18N[lang]["about_page"] + ".html")}">{ui["about"]}</a>'
                f'<a href="{feed}">RSS</a>{pick}'
                f'<a class="gh" href="https://github.com/eduardoworrel/state-of-the-art-webai" '
