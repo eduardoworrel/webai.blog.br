@@ -67,8 +67,6 @@ main { padding: 0 1.25rem 4rem; }
 .compartilhar span { color: var(--fg2); margin-right: .25rem; font-weight: 500; }
 .compartilhar a { color: var(--fg); text-decoration: none; border: 1px solid var(--line2); padding: .3rem .8rem; border-radius: 999px; font-weight: 500; }
 .compartilhar a:hover { border-color: var(--accent); color: var(--accent); }
-.capa-img { margin: 0 0 3rem; }
-.capa-img img { width: auto; max-width: 100%; max-height: min(74vh, 44rem); margin: 0 auto; border-radius: 18px; border: 1px solid var(--line2); }
 
 /* corpo: sumário à esquerda (telas largas) e texto */
 .miolo { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2rem; }
@@ -92,11 +90,24 @@ main { padding: 0 1.25rem 4rem; }
 .texto ul, .texto ol { padding-left: 1.3rem; }
 .texto li + li { margin-top: .35rem; }
 
-/* figuras: cartão com a imagem e a legenda "FIG A" numa faixa embaixo */
-figure { margin: 2.6rem 0; border: 1px solid var(--line2); border-radius: 16px; overflow: hidden; background: #f7f5f0; }
-figure img { width: auto; max-width: 100%; max-height: min(78vh, 46rem); margin: 0 auto; border: 0; border-radius: 0; object-fit: contain; }
-figcaption { display: flex; gap: 1.2rem; align-items: baseline; padding: .9rem 1.4rem; border-top: 1px solid var(--line2); background: #fff; font-size: .95rem; color: var(--fg2); line-height: 1.45; }
+/* figuras (capa e corpo): cartão com a imagem inteira (nunca recortada) e legenda embaixo.
+   Desktop: 60% da largura do conteúdo, centralizada; a imagem sempre cabe na altura da janela. Celular: largura toda.
+   Clicar/tocar amplia em tela cheia (CSS puro, :target). Ajuste --fig-largura para mudar o tamanho. */
+:root { --fig-largura: 60%; --fig-reserva: 9rem; }
+figure { width: var(--fig-largura); margin: 2.6rem auto; border: 1px solid var(--line2); border-radius: 16px; overflow: hidden; background: #f7f5f0; }
+@media (max-width: 700px) { :root { --fig-largura: 100%; } figure { border-radius: 12px; } }
+.capa-img { margin: 0 auto 3rem; }
+figure img { width: auto; height: auto; max-width: 100%; max-height: calc(100vh - var(--fig-reserva)); max-height: calc(100svh - var(--fig-reserva));
+  margin: 0 auto; border: 0; border-radius: 0; object-fit: contain; }
+.amplia { display: block; cursor: zoom-in; }
+figcaption { display: flex; gap: 1.2rem; align-items: baseline; padding: .8rem 1.2rem; border-top: 1px solid var(--line2); background: #fff; font-size: .92rem; color: var(--fg2); line-height: 1.45; }
 figcaption b { flex: none; font: 700 .78rem/1 var(--mono); letter-spacing: .1em; color: var(--accent-ink); }
+.zoom { display: none; position: fixed; inset: 0; z-index: 30; flex-direction: column; align-items: center; justify-content: center; gap: .8rem;
+  padding: 1rem; background: rgba(20,26,38,.96); cursor: zoom-out; color: #fff; text-decoration: none; font-size: .9rem; text-align: center; }
+.zoom:target { display: flex; }
+.zoom img { max-width: 96vw; max-height: calc(100vh - 5rem); max-height: calc(100svh - 5rem); width: auto; height: auto; object-fit: contain; border-radius: 6px; background: #fff; }
+.zoom span { max-width: 60rem; opacity: .85; }
+.zoom::after { content: "×"; position: absolute; top: .6rem; right: 1.1rem; font-size: 2rem; line-height: 1; }
 
 blockquote { margin: 1.8rem 0; padding: 1rem 1.3rem; background: var(--muted-bg); border-left: 4px solid var(--line2); border-radius: 0 12px 12px 0; font-size: 1rem; }
 blockquote.nota { background: var(--accent-soft); border-left-color: var(--accent); }
@@ -137,3 +148,12 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 2.5rem 0; }
 /* páginas simples (Sobre, 404) */
 main > article:not(.post) { max-width: 46rem; margin: 3rem auto 0; }
 main > article:not(.post) h1 { font-size: 2.4rem; letter-spacing: -.02em; line-height: 1.15; }
+
+/* seletor de idioma, selo de tradução e nota de idioma */
+.topo nav a.idioma { border: 1px solid var(--line2); border-radius: 999px; padding: .1rem .7rem; color: var(--fg); }
+.topo nav a.idioma:hover { border-color: var(--accent); }
+.cartao .meta { align-items: center; }
+.tambem { font-size: .78rem; font-weight: 600; color: var(--accent-ink); background: var(--accent-soft); border: 1px solid var(--accent-bg); padding: .1rem .55rem; border-radius: 999px; }
+.nota-idioma { max-width: 72rem; margin: -1rem auto 1.5rem; color: var(--fg2); font-size: .95rem; }
+.vazio { max-width: 72rem; margin: 0 auto; color: var(--fg2); }
+@media (max-width: 700px) { .topo { position: static; flex-wrap: wrap; padding-block: .6rem; } .topo nav { gap: .5rem .9rem; flex-wrap: wrap; font-size: .9rem; } .topo nav a.gh { display: none; } }

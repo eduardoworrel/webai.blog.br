@@ -7,7 +7,7 @@ Os posts entram por pull request. Não precisa instalar nada: dá para fazer tud
 Nome: `posts/AAAA-MM-DD-slug.md`
 
 - `AAAA-MM-DD` é a data de publicação.
-- `slug` vira o endereço do post (`webai.blog.br/slug.html`): só letras minúsculas sem acento, números e
+- `slug` vira o endereço do post (`webai.blog.br/slug.html`; em inglês, `webai.blog.br/en/slug.html`): só letras minúsculas sem acento, números e
   hífen. Exemplo: `posts/2026-12-01-whisper-no-navegador.md`.
 
 Modelo:
@@ -34,7 +34,8 @@ Campos do front matter:
 | `title`       | sim         | texto                                                |
 | `date`        | sim         | `AAAA-MM-DD`, igual à data do nome do arquivo         |
 | `description` | sim         | texto, até 200 caracteres                            |
-| `lang`        | não         | `pt-BR` (padrão), `en` ou `es`                       |
+| `lang`        | não         | `pt-BR` (padrão) ou `en`                              |
+| `translation` | não         | slug do mesmo post no outro idioma (veja "Post com tradução") |
 | `authors`     | não         | quem escreveu, em texto (ex.: `Ana Souza, Bia Lima`); aparece no cabeçalho |
 | `category`    | não         | uma palavra (ex.: `Pesquisa`, `Tutorial`); vira a etiqueta do post |
 | `cover`       | não         | imagem da pasta do post: aparece no topo do artigo, no cartão do índice e na prévia ao compartilhar |
@@ -56,6 +57,34 @@ Limites:
 
 Para reduzir uma imagem no Mac: `sips -Z 1600 imagem.png`. Em qualquer sistema, [Squoosh](https://squoosh.app)
 converte para WebP no navegador.
+
+## Post com tradução (português e inglês)
+
+Um post em dois idiomas é **um post com duas versões**, não dois posts independentes. Cada versão é um arquivo,
+e um aponta para o outro pelo campo `translation`, com o **slug** do outro (o slug de cada versão deve ser diferente):
+
+```
+posts/2026-12-01-whisper-no-navegador.md    lang: pt-BR   translation: whisper-in-the-browser
+posts/2026-12-01-whisper-in-the-browser.md  lang: en      translation: whisper-no-navegador
+posts/whisper-no-navegador/                 imagens da versão em português
+posts/whisper-in-the-browser/               imagens da versão em inglês (podem ser as mesmas, copiadas)
+```
+
+Regras (o `build.py check` confere todas):
+
+- o vínculo é recíproco: se A aponta para B, B precisa apontar para A;
+- as duas versões têm idiomas diferentes (`pt-BR` e `en`);
+- cada versão tem seu próprio `title`, `description`, texto e imagens (traduza também o texto alternativo e as legendas).
+
+O que o site faz com o par: o português fica na raiz (`/slug.html`) e o inglês em `/en/` (`/en/slug.html`). A página
+inicial e o feed RSS de cada idioma mostram **uma** entrada por post, na língua daquela página, com o selo
+"Também em English" / "Also in Português". O seletor de idioma do cabeçalho leva à tradução do mesmo post.
+O gerador também escreve sozinho o `canonical` de cada versão (apontando para ela mesma), as tags
+`hreflang` recíprocas (`pt-BR`, `en`, `x-default`), o `<html lang>`, o `og:locale` e o sitemap com `xhtml:link`.
+
+Post sem tradução: omita `translation`. Ele aparece só no idioma em que foi escrito; a página inicial do outro
+idioma mostra uma nota avisando que há posts só no primeiro. Para traduzir depois, basta criar a outra versão
+e acrescentar `translation` nas duas.
 
 ## 3. Abra o pull request
 
