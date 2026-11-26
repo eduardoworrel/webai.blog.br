@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visual Jev no navegador · webai.blog.br</title>
+<meta name="description" content="Um modelo de visão de 4 bilhões de parâmetros responde perguntas de escolha sobre a sua imagem, no navegador. A imagem não sai da página.">
+<link rel="canonical" href="https://webai.blog.br/demos/s1s2/imagem/">
+<meta property="og:title" content="Visual Jev no navegador">
+<meta property="og:description" content="Pergunta de escolha sobre uma imagem, com probabilidade por opção, rodando no seu navegador.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://webai.blog.br/demos/s1s2/imagem/">
+<meta name="color-scheme" content="light">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/style.css">
+<!-- O tokenizador (transformers.js) importa o ONNX Runtime pelo nome; os dois nomes apontam para a mesma cópia fixada, no jsDelivr. -->
+<script type="importmap">{"imports":{"onnxruntime-web/webgpu":"https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.1/dist/ort.webgpu.min.mjs","onnxruntime-common":"https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.1/dist/ort.webgpu.min.mjs"}}</script>
+<style>
+  .demo { max-width: 56rem; margin: 0 auto; padding-top: 2.5rem; }
+  .demo h1 { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.1; letter-spacing: -.02em; margin: 0 0 .8rem; }
+  .demo h2 { font-size: 1.3rem; line-height: 1.25; margin: 0 0 .7rem; }
+  .demo .lede { font-size: 1.2rem; line-height: 1.5; color: var(--fg2); margin: 0 0 1.2rem; max-width: 42rem; }
+  .demo p { margin: 0 0 .8rem; }
+  .painel { border: 1px solid var(--line); border-radius: 16px; background: #fff; padding: 1.2rem 1.3rem; margin: 0 0 1.4rem; }
+  .painel > :last-child { margin-bottom: 0; }
+  .linha { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+  .fraco { color: var(--fg2); font-size: .95rem; }
+  button, .botao { font: inherit; font-weight: 600; font-size: .98rem; line-height: 1.2; padding: .6rem 1.05rem; border-radius: 999px; border: 1px solid var(--line2); background: #fff; color: var(--fg); cursor: pointer; min-height: 2.75rem; display: inline-flex; align-items: center; }
+  button:hover:not(:disabled), .botao:hover { border-color: var(--accent); color: var(--accent); }
+  button.principal { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.principal:hover:not(:disabled) { background: var(--accent-ink); border-color: var(--accent-ink); color: #fff; }
+  button:disabled { opacity: .5; cursor: default; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .botao:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .botao input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+  progress { width: 100%; height: .7rem; accent-color: var(--accent); }
+  .nota { background: var(--accent-soft); border-left: 4px solid var(--accent); border-radius: 0 12px 12px 0; padding: .6rem 1rem; font-size: .95rem; margin: 0 0 1rem; }
+  .req { font-size: 1rem; margin: 0 0 .9rem; }
+  .req b { color: var(--accent-ink); }
+  .exemplos { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr)); margin: 0 0 .9rem; }
+  .exemplos button { padding: .35rem; border-radius: 12px; flex-direction: column; gap: .25rem; font-size: .85rem; font-weight: 500; min-height: 0; justify-content: center; }
+  .exemplos button img { width: 100%; aspect-ratio: 1; border-radius: 8px; display: block; background: #fff; border: 1px solid var(--line); }
+  .exemplos button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+  .previa { display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; margin-top: .4rem; }
+  .previa canvas { width: 12rem; max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 12px; background: #fff; display: block; }
+  .zona { border: 2px dashed var(--line2); border-radius: 12px; padding: .7rem 1rem; font-size: .95rem; color: var(--fg2); flex: 1 1 12rem; min-height: 3rem; display: flex; align-items: center; }
+  .zona.sobre-zona { border-color: var(--accent); background: var(--accent-soft); }
+  label.campo-rot { display: block; font-weight: 600; font-size: .95rem; margin: .2rem 0 .3rem; }
+  input[type=text] { font: inherit; padding: .55rem .8rem; border-radius: 12px; border: 1px solid var(--line2); background: #fff; color: var(--fg); min-width: 0; width: 100%; min-height: 2.75rem; }
+  .opcoes { list-style: none; padding: 0; margin: .3rem 0 .6rem; display: grid; gap: .5rem; }
+  .opcoes li { display: grid; grid-template-columns: 1.6rem 1fr auto; gap: .5rem; align-items: center; max-width: none; margin: 0; }
+  .opcoes b { text-align: center; color: var(--accent-ink); }
+  .opcoes button { padding: .4rem .8rem; }
+  .chips { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 .8rem; }
+  .chips button { font-weight: 500; font-size: .9rem; min-height: 2.4rem; }
+  .chips button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+  .resultado { border: 1px solid var(--line); border-radius: 14px; padding: 1.1rem 1.2rem; background: #fff; margin: 0 0 1.4rem; }
+  .resultado.destaque { background: var(--accent-soft); border-color: var(--accent); }
+  .resultado h3 { font-size: .98rem; line-height: 1.3; margin: 0 0 .3rem; color: var(--fg2); font-weight: 600; }
+  .vence { font-size: 2.2rem; line-height: 1.1; font-weight: 700; margin: 0 0 .2rem; overflow-wrap: anywhere; }
+  .vence small { font-size: 1rem; color: var(--fg2); font-weight: 600; margin-left: .4rem; }
+  .prob { list-style: none; padding: 0; margin: .8rem 0; display: grid; gap: .45rem; }
+  .prob li { display: grid; grid-template-columns: 1.4rem minmax(3rem, 9rem) 1fr 4.2rem; gap: .6rem; align-items: center; max-width: none; margin: 0; font-variant-numeric: tabular-nums; }
+  .prob li.venc { font-weight: 700; }
+  .prob .nome { overflow-wrap: anywhere; }
+  .prob b { text-align: right; font-weight: inherit; }
+  .barra { height: .6rem; background: var(--line); border-radius: 999px; overflow: hidden; display: block; }
+  .barra i { display: block; height: 100%; width: 0; background: var(--line2); }
+  .prob li.venc .barra i { background: var(--accent); }
+  .tempo { font-size: .95rem; color: var(--fg2); margin: .4rem 0 0; font-variant-numeric: tabular-nums; }
+  .sobre { border: 1px solid var(--line); border-radius: 16px; background: #fff; padding: .8rem 1.3rem; margin: 0 0 1.4rem; }
+  .sobre > summary { cursor: pointer; color: var(--accent); font-weight: 600; min-height: 2rem; }
+  .sobre h2 { font-size: 1.05rem; margin: 1rem 0 .4rem; }
+  .sobre ul { padding-left: 1.2rem; margin: 0 0 .6rem; font-size: .95rem; color: var(--fg2); }
+  .sobre li { max-width: none; }
+  .sobre li + li { margin-top: .3rem; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .demo p:empty { display: none; }
+  [hidden] { display: none !important; }
+  @media (max-width: 520px) {
+    .painel { padding: 1rem; }
+    .prob li { grid-template-columns: 1.4rem minmax(2.5rem, 6rem) 1fr 3.8rem; gap: .4rem; }
+    button, .botao { padding: .55rem .9rem; }
+  }
+</style>
+</head>
+<body>
+<header class="topo">
+<a class="marca" href="/" id="home"><img src="/logo.svg" alt="" width="28" height="28"><span>webai.blog.br</span></a>
+<nav aria-label="webai.blog.br">
+<a href="/" data-t="nav_posts"></a>
+<a class="externo" href="https://webai.blog.br/state-of-the-art/" target="_blank" rel="noopener">State of the Art</a>
+<a class="externo" href="https://webai.blog.br/observatorio/" target="_blank" rel="noopener">Observatório</a>
+<a href="/sobre.html" id="about" data-t="nav_about"></a>
+<a class="idioma" id="trocar" href="?lang=en" lang="en" hreflang="en">English</a>
+</nav>
+</header>
+<main>
+<div class="demo">
+
+<h1 data-t="title"></h1>
+<p class="lede" data-t="lede"></p>
+<p class="nota" id="aviso-nav" role="status" hidden></p>
+
+<section class="painel" aria-label="Modelo">
+  <p class="req" id="req"></p>
+  <p class="nota" id="unsupported" role="status" hidden></p>
+  <p class="linha" style="margin:0">
+    <button id="load" class="principal" type="button"></button>
+    <button id="force" type="button" hidden data-t="force"></button>
+  </p>
+  <div id="prog" hidden style="margin-top:.8rem">
+    <progress id="bar" max="100" value="0" aria-labelledby="status"></progress>
+  </div>
+  <p id="status" class="fraco" role="status" aria-live="polite" style="margin:.6rem 0 0"></p>
+</section>
+
+<section class="painel" aria-labelledby="h-img" id="pergunta" hidden>
+  <h2 id="h-img" data-t="h_image"></h2>
+  <div class="exemplos" id="exemplos" role="group" aria-labelledby="h-img"></div>
+  <div class="linha">
+    <label class="botao"><span data-t="file"></span><input id="file" type="file" accept="image/*"></label>
+    <div class="zona" id="zona" tabindex="0" data-t="drop"></div>
+  </div>
+  <div class="previa"><canvas id="prev" width="256" height="256" role="img" hidden></canvas></div>
+  <p id="what" class="fraco" style="margin:.5rem 0 1rem" role="status" aria-live="polite"></p>
+
+  <h2 data-t="h_question"></h2>
+  <div class="chips" id="chips" role="group" aria-label=""></div>
+  <label class="campo-rot" for="q" data-t="q_label"></label>
+  <input id="q" type="text" autocomplete="off" spellcheck="false" maxlength="300">
+  <p class="campo-rot" style="margin:.8rem 0 0" id="opt-label" data-t="o_label"></p>
+  <ol class="opcoes" id="opcoes" aria-labelledby="opt-label" style="padding:0"></ol>
+  <p class="linha">
+    <button type="button" id="add" data-t="add"></button>
+    <button type="button" id="ask" class="principal" data-t="ask"></button>
+  </p>
+  <p class="fraco" data-t="en_note" style="margin:0"></p>
+</section>
+
+<section aria-labelledby="h-res" id="resultados" hidden>
+  <h2 id="h-res" class="sr" data-t="h_result"></h2>
+  <article class="resultado destaque" aria-live="polite">
+    <h3 data-t="winner"></h3>
+    <p class="vence" id="vence">…</p>
+    <ul class="prob" id="prob"></ul>
+    <p class="tempo" id="margem"></p>
+    <p class="tempo" id="tempo" role="status"></p>
+  </article>
+</section>
+
+<details class="sobre" id="sobre">
+  <summary data-t="h_about"></summary>
+  <h2 data-t="h_what"></h2>
+  <ul id="what-list"></ul>
+  <h2 data-t="h_limits"></h2>
+  <ul id="limits"></ul>
+  <h2 data-t="h_credits"></h2>
+  <ul id="credits"></ul>
+</details>
+
+</div>
+</main>
+<footer class="rodape">
+<p><a href="/" data-t="nav_posts" id="foot-home"></a> · <a href="https://github.com/eduardoworrel/webai.blog.br/blob/main/CONTRIBUTING.md" data-t="foot_write"></a> · <a href="https://github.com/eduardoworrel/state-of-the-art-webai" data-t="foot_map"></a></p>
+</footer>
+
+<script type="module">
+// ---- Versões fixadas: tudo o que a página baixa vem destes endereços, com versão ou commit.
+const S1S2_VERSION = "0.3.0";
+const ORT_VERSION = "1.31.1";
+const TJS_VERSION = "4.3.1";           // só o tokenizador
+const HUB_REPO = "eduardoworrel/Visual-Jev-4B-ONNX-S1S2";
+const HUB_COMMIT = "b4d6ddebf262d0ebce06552042299be69f1535c8";   // commit do Hub com o manifest; os pesos estão presos pelo manifest (40 hex)
+const MODEL_GB = 3.8;                  // tamanho do pacote
+const EXPECTED_BYTES = 330286234 + 183828480 + 999101 + 2038562816 + 479690752;   // arquivos baixados inteiros (o resto vem em leituras parciais)
+
+const MEDIA_URL = `https://cdn.jsdelivr.net/npm/@s1s2/web@${S1S2_VERSION}/dist/media.js`;
+const ORT_BASE = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_VERSION}/dist/`;
+const TJS_URL = `https://cdn.jsdelivr.net/npm/@huggingface/transformers@${TJS_VERSION}/dist/transformers.web.js`;
+const MANIFEST_URL = `https://huggingface.co/${HUB_REPO}/resolve/${HUB_COMMIT}/manifest.json`;
+const HUB_PREFIX = `https://huggingface.co/${HUB_REPO}/resolve/`;
+const MAX_SIDE = 1024;                 // imagens maiores são reduzidas antes de ir ao modelo (ele usa no máximo ~200 mil pixels)
+const MAX_OPTIONS = 6, MIN_OPTIONS = 2;
+
+// Exemplos: desenhos nossos (exemplos/gerar.py). Pergunta e opções em inglês: o modelo só lê inglês.
+const EXAMPLES = [
+  { id: "circulo-quadrado", pt: "Círculo e quadrado", en: "Circle and square", qs: [
+    ["What color is the circle?", ["red", "green", "blue", "yellow"]],
+    ["What shape is red?", ["circle", "square", "triangle"]] ] },
+  { id: "posicoes", pt: "Esquerda e direita", en: "Left and right", qs: [
+    ["Which shape is on the left?", ["circle", "square", "triangle", "star"]],
+    ["What color is the circle?", ["red", "green", "blue", "yellow"]] ] },
+  { id: "quadrado", pt: "Um quadrado", en: "One square", qs: [
+    ["What color is the shape?", ["red", "green", "blue", "yellow"]],
+    ["What shape is in the image?", ["circle", "square", "triangle", "star"]] ] },
+  { id: "tres-formas", pt: "Três formas", en: "Three shapes", qs: [
+    ["What color is the triangle?", ["red", "green", "blue"]],
+    ["Which shape is at the top?", ["circle", "square", "triangle"]] ] },
+  { id: "estrelas", pt: "Estrelas", en: "Stars", qs: [
+    ["How many stars are there?", ["1", "2", "3", "4"]],
+    ["What color are the stars?", ["purple", "green", "orange", "red"]] ] }
+];
+
+// ---- Textos (pt-BR e en; es não foi feito)
+const TX = {
+  "pt-BR": {
+    nav_posts: "Posts", nav_about: "Sobre", foot_write: "Escreva um post", foot_map: "Contribua com o mapa",
+    title: "Visual Jev no navegador",
+    lede: "Um modelo de visão pequeno escolhe a resposta de uma pergunta sobre a sua imagem, aqui na página.",
+    req: "<b>Chrome ou Edge no computador.</b> Baixa {gb} GB uma vez, usa uns 3 GB de memória e leva cerca de 15 segundos por pergunta.",
+    unsupported: "Celular e Safari não são suportados, e esta demo não tenta carregar o modelo neles. ({why})",
+    why_mobile: "celular ou tablet", why_safari: "Safari", why_gpu: "sem WebGPU", why_mem: "memória informada abaixo de 8 GB",
+    force: "Tentar mesmo assim",
+    load: "Carregar o modelo (≈{gb} GB, baixa uma vez)", loading: "Carregando…",
+    s_download: "Baixando", s_prep: "Preparando o modelo (pode levar alguns segundos)…", s_ready: "Modelo pronto ({dev}, {s} s).", s_err: "Não foi possível carregar o modelo: ",
+    st_tok: "Carregando o vocabulário…", st_emb: "Carregando os vetores das palavras…", st_vis: "Carregando a visão…", st_text: "Carregando o texto…",
+    oom: "O navegador fechou a página por falta de memória. Esta demo precisa de uns 3 GB livres: feche outras abas e tente de novo.",
+    gpu_lost: "O navegador perdeu o acesso à placa de vídeo (WebGPU). Recarregue a página.",
+    h_image: "Escolha uma imagem", file: "Enviar imagem", drop: "Ou arraste uma imagem para cá, ou cole com Ctrl+V.",
+    what_x: "{label}: {w} × {h} px.", up_label: "Imagem enviada", no_img: "Não consegui ler esta imagem.", need_model: "Carregue o modelo primeiro; a imagem já está pronta.",
+    h_question: "Faça uma pergunta de escolha", q_label: "Pergunta", o_label: "Opções (de 2 a 6)", opt_ph: "opção {n}", remove: "Remover a opção {n}", add: "Adicionar opção", ask: "Perguntar",
+    chips_label: "Perguntas prontas desta imagem",
+    en_note: "Escreva a pergunta e as opções em inglês: o modelo só lê inglês.",
+    h_result: "Resposta", winner: "Resposta do modelo", working: "Lendo a imagem e a pergunta… cerca de 15 segundos.", p_of: "{p}",
+    margin: "Margem: {m} (diferença entre a primeira e a segunda opção; perto de 0, desconfie).",
+    time: "Medido agora, neste aparelho ({dev}): pré-processamento {pre} ms, visão {vis} s, prefixo {pfx} s, ramos (a pergunta) {br} s. Total {tot} s.",
+    err_opts: "Preencha de 2 a 6 opções diferentes e a pergunta.", err_run: "Não foi possível responder: ",
+    h_about: "Sobre, limites e créditos", h_what: "Sobre", h_limits: "Limites", h_credits: "Créditos e licenças",
+    what: ["O Visual Jev (Yu e Yao, <a href=\"https://arxiv.org/abs/2609.25845\">arXiv 2609.25845</a>) é um LoRA sobre o Qwen3-VL-4B-Instruct que responde perguntas de escolha sobre uma imagem. Não há cabeça extra: a probabilidade de cada opção vem do logit da letra da opção (A, B, C…) depois da pergunta.", "Aqui roda o modelo original do artigo, em ONNX int4: a visão em WASM e o texto em WebGPU. O download é de ≈{gb} GB, uma vez; a imagem e a pergunta não saem da página.", "A pergunta e as opções são em inglês (o modelo é só em inglês), de 2 a 6 opções."],
+    limits: ["A visão roda em WASM porque a visão em WebGPU erra no onnxruntime-web 1.31.1; por isso leva cerca de 15 segundos por pergunta.", "Acurácia de 0,925 em 240 perguntas do ScienceQA, que não é o benchmark do artigo e está fora das famílias em que o modelo foi treinado. Os números do artigo não foram reproduzidos.", "As tolerâncias de paridade combinadas antes das medições não foram cumpridas: contra um oráculo PyTorch bfloat16 (n = 60), o percentil 95 da diferença de probabilidade foi 0,198 e 6,7 % das decisões mudaram.", "As probabilidades são cruas e confiantes demais; a ordem das opções muda a resposta; contar objetos é o ponto fraco.", "Só Chrome ou Edge no computador, com WebGPU e uns 3 GB de memória livre. Celular e Safari não são suportados.", "É uma demonstração de pesquisa. Não use para diagnóstico, para identificar pessoas nem em automação crítica."],
+    credits: ['Modelo-base: <a href="https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct">Qwen3-VL-4B-Instruct</a> (Qwen), Apache-2.0.', 'Adaptador: <a href="https://huggingface.co/guanxuyu/visual-jev-4b-answer-sft">guanxuyu/visual-jev-4b-answer-sft</a> (Yu e Yao), Apache-2.0.', 'Pesos em ONNX: <a href="https://huggingface.co/eduardoworrel/Visual-Jev-4B-ONNX-S1S2">eduardoworrel/Visual-Jev-4B-ONNX-S1S2</a> no Hugging Face, Apache-2.0.', 'Biblioteca: <a href="https://github.com/eduardoworrel/s1s2.js">s1s2.js</a> (<code>@s1s2/web {v}</code>), com <a href="https://onnxruntime.ai/">ONNX Runtime Web</a> {o} e o tokenizador do <a href="https://github.com/huggingface/transformers.js">transformers.js</a> {t} (Apache-2.0).', 'Desenhos de exemplo: nossos, domínio público, gerados por <a href="exemplos/gerar.py">exemplos/gerar.py</a>.']
+  },
+  en: {
+    nav_posts: "Posts", nav_about: "About", foot_write: "Write a post", foot_map: "Contribute to the map",
+    title: "Visual Jev in your browser",
+    lede: "A small vision model picks the answer to a multiple-choice question about your image, right on this page.",
+    req: "<b>Chrome or Edge on a computer.</b> Downloads {gb} GB once, uses about 3 GB of memory and takes about 15 seconds per question.",
+    unsupported: "Phones and Safari are not supported, and this demo does not try to load the model on them. ({why})",
+    why_mobile: "phone or tablet", why_safari: "Safari", why_gpu: "no WebGPU", why_mem: "reported memory below 8 GB",
+    force: "Try anyway",
+    load: "Load the model (≈{gb} GB, downloaded once)", loading: "Loading…",
+    s_download: "Downloading", s_prep: "Preparing the model (may take a few seconds)…", s_ready: "Model ready ({dev}, {s} s).", s_err: "The model could not be loaded: ",
+    st_tok: "Loading the vocabulary…", st_emb: "Loading the word vectors…", st_vis: "Loading the vision…", st_text: "Loading the text…",
+    oom: "The browser closed the page for lack of memory. This demo needs about 3 GB free: close other tabs and try again.",
+    gpu_lost: "The browser lost access to the graphics card (WebGPU). Reload the page.",
+    h_image: "Pick an image", file: "Upload an image", drop: "Or drag an image here, or paste it with Ctrl+V.",
+    what_x: "{label}: {w} × {h} px.", up_label: "Uploaded image", no_img: "Could not read this image.", need_model: "Load the model first; the image is ready.",
+    h_question: "Ask a multiple-choice question", q_label: "Question", o_label: "Options (2 to 6)", opt_ph: "option {n}", remove: "Remove option {n}", add: "Add option", ask: "Ask",
+    chips_label: "Ready-made questions for this image",
+    en_note: "Write the question and the options in English: the model only reads English.",
+    h_result: "Answer", winner: "The model's answer", working: "Reading the image and the question… about 15 seconds.", p_of: "{p}",
+    margin: "Margin: {m} (gap between the first and the second option; close to 0, be wary).",
+    time: "Measured just now, on this device ({dev}): pre-processing {pre} ms, vision {vis} s, prefix {pfx} s, branches (the question) {br} s. Total {tot} s.",
+    err_opts: "Fill in 2 to 6 different options and the question.", err_run: "Could not answer: ",
+    h_about: "About, limits and credits", h_what: "About", h_limits: "Limits", h_credits: "Credits and licences",
+    what: ["Visual Jev (Yu and Yao, <a href=\"https://arxiv.org/abs/2609.25845\">arXiv 2609.25845</a>) is a LoRA on Qwen3-VL-4B-Instruct that answers multiple-choice questions about an image. There is no extra head: the probability of each option comes from the logit of the option letter (A, B, C…) after the question.", "This runs the paper's original model, as int4 ONNX: vision on WASM and text on WebGPU. The download is ≈{gb} GB, once; the image and the question never leave the page.", "The question and the options are in English (the model is English only), 2 to 6 options."],
+    limits: ["Vision runs on WASM because vision on WebGPU gives wrong results in onnxruntime-web 1.31.1; that is why it takes about 15 seconds per question.", "Accuracy of 0.925 on 240 ScienceQA questions, which is not the paper's benchmark and sits outside the families the model was trained on. The paper's own numbers were not reproduced.", "The parity tolerances written before the measurements were not met: against a bfloat16 PyTorch oracle (n = 60), the 95th percentile of the probability difference was 0.198 and 6.7% of the decisions flipped.", "Probabilities are raw and overconfident; the order of the options changes the answer; counting objects is the weak spot.", "Chrome or Edge on a computer only, with WebGPU and about 3 GB of free memory. Phones and Safari are not supported.", "This is a research demo. Do not use it for diagnosis, to identify people or in critical automation."],
+    credits: ['Base model: <a href="https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct">Qwen3-VL-4B-Instruct</a> (Qwen), Apache-2.0.', 'Adapter: <a href="https://huggingface.co/guanxuyu/visual-jev-4b-answer-sft">guanxuyu/visual-jev-4b-answer-sft</a> (Yu and Yao), Apache-2.0.', 'ONNX weights: <a href="https://huggingface.co/eduardoworrel/Visual-Jev-4B-ONNX-S1S2">eduardoworrel/Visual-Jev-4B-ONNX-S1S2</a> on Hugging Face, Apache-2.0.', 'Library: <a href="https://github.com/eduardoworrel/s1s2.js">s1s2.js</a> (<code>@s1s2/web {v}</code>), with <a href="https://onnxruntime.ai/">ONNX Runtime Web</a> {o} and the tokenizer of <a href="https://github.com/huggingface/transformers.js">transformers.js</a> {t} (Apache-2.0).', 'Example drawings: ours, public domain, made by <a href="exemplos/gerar.py">exemplos/gerar.py</a>.']
+  }
+};
+const qs = new URLSearchParams(location.search);
+const LANG = (qs.get("lang") ?? navigator.language ?? "en").toLowerCase().startsWith("pt") ? "pt-BR" : "en";
+const T = TX[LANG], en = LANG === "en";
+const GB = MODEL_GB.toLocaleString(LANG, { minimumFractionDigits: 1 });
+const sub = (s, o) => s.replace(/\{(\w+)\}/g, (_, k) => o[k] ?? "");
+const num = (v, d = 1) => v.toLocaleString(LANG, { minimumFractionDigits: d, maximumFractionDigits: d });
+const pct = (v) => `${num(v * 100)} %`;
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+document.documentElement.lang = LANG;
+$("#home").href = en ? "/en/" : "/";
+$("#foot-home").href = en ? "/en/" : "/";
+$("#about").href = en ? "/en/about.html" : "/sobre.html";
+const sw = $("#trocar"); sw.href = `?lang=${en ? "pt-BR" : "en"}`; sw.textContent = en ? "Português" : "English"; sw.lang = en ? "pt-BR" : "en"; sw.hreflang = sw.lang;
+document.title = `${T.title} · webai.blog.br`;
+for (const e of document.querySelectorAll("[data-t]")) e.textContent = T[e.dataset.t];
+$("#req").innerHTML = sub(T.req, { gb: GB });
+$("#what-list").innerHTML = T.what.map((x) => `<li>${sub(x, { gb: GB })}</li>`).join("");
+$("#limits").innerHTML = T.limits.map((x) => `<li>${x}</li>`).join("");
+$("#credits").innerHTML = T.credits.map((x) => `<li>${sub(x, { v: S1S2_VERSION, o: ORT_VERSION, t: TJS_VERSION })}</li>`).join("");
+$("#chips").setAttribute("aria-label", T.chips_label);
+
+// ---- Estado
+let model = null, loading = false, running = false, current = null /* { canvas, label } */, ort = null, exIndex = -1, chipIndex = 0;
+const setStatus = (s) => { $("#status").textContent = s; };
+const notice = (msg) => { const n = $("#aviso-nav"); n.textContent = msg; n.hidden = false; };
+const store = { get: (k) => { try { return sessionStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { sessionStorage.setItem(k, v); } catch {} } };
+const events = [];
+const navType = performance.getEntriesByType("navigation")[0]?.type ?? "navigate";
+if (store.get("vj-sessao") === "1" && (navType === "reload" || navType === "back_forward")) notice(T.oom);
+addEventListener("pagehide", (ev) => { events.push({ t: Date.now(), e: "pagehide", persisted: ev.persisted }); });
+
+// ---- Aparelho: celular, Safari, sem WebGPU ou pouca memória => aviso no lugar do botão (com "Tentar mesmo assim")
+const ua = navigator.userAgent;
+const ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const mobile = ios || /Android|Mobi/i.test(ua);
+const safari = /^((?!chrome|chromium|crios|edg|android).)*safari/i.test(ua);
+async function hasGpu() { try { return !!(navigator.gpu && await navigator.gpu.requestAdapter()); } catch { return false; } }
+
+// ---- Contagem dos bytes dos arquivos grandes do Hub, para a barra (nada é guardado no Cache Storage)
+let counted = 0, phase = "download";   // "download" mostra a porcentagem; "prep" mostra uma mensagem só (evita a mensagem piscando perto dos 99 %)
+function enterPrep() { if (phase === "prep") return; phase = "prep"; $("#bar").removeAttribute("value"); setStatus(T.s_prep); }
+function setProgress() {
+  if (phase === "prep") return;
+  const p = Math.min(99, Math.round(counted / EXPECTED_BYTES * 100));
+  if (p >= 99) { enterPrep(); return; }
+  $("#bar").value = p;
+  setStatus(`${T.s_download}: ${p} %`);
+}
+function installFetch() {
+  if (window.__vjFetch) return;
+  const orig = window.fetch.bind(window);
+  window.__vjFetch = true;
+  window.fetch = async (input, init) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
+    const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+    if (!url.startsWith(HUB_PREFIX) || method !== "GET" || headers.has("range")) return orig(input, init);
+    const r = await orig(input, init);
+    const size = Number(r.headers.get("content-length") ?? 0);
+    if (!r.ok || !r.body || size < 50e6) return r;
+    return new Response(r.body.pipeThrough(new TransformStream({ transform(c, ctl) { counted += c.byteLength; setProgress(); ctl.enqueue(c); } })), { status: 200, headers: r.headers });   // só conta; sem Cache Storage (o Safari estoura a memória ao gravar arquivos de centenas de MB)
+  };
+}
+
+// ---- Carregar o modelo
+const STAGE = [[/loading tokenizer/, "st_tok"], [/loading embeddings/, "st_emb"], [/loading vision/, "st_vis"], [/loading text/, "st_text"]];
+function onStatus(m) {
+  if (phase === "prep") return;
+  const hit = STAGE.find(([re]) => re.test(m));
+  if (hit && counted === 0) setStatus(T[hit[1]]);   // durante o download, a porcentagem toma o lugar
+}
+async function load() {
+  if (loading || model) return;
+  loading = true;
+  const t0 = performance.now();
+  $("#load").disabled = true; $("#force").hidden = true; $("#unsupported").hidden = true; $("#load").textContent = T.loading; $("#prog").hidden = false; $("#bar").value = 0; counted = 0; phase = "download";
+  try {
+    installFetch();
+    ort = await import(`${ORT_BASE}ort.webgpu.min.mjs`);
+    ort.env.wasm.wasmPaths = ORT_BASE;
+    ort.env.wasm.numThreads = 1;                       // sem cabeçalhos especiais (COOP/COEP): uma thread basta
+    const transformers = await import(TJS_URL);
+    const { loadMedia } = await import(MEDIA_URL);
+    const poll = setInterval(() => { if (counted >= EXPECTED_BYTES * .995) enterPrep(); }, 500);
+    try { model = await loadMedia({ manifest: MANIFEST_URL, modality: "image", modules: { ort, transformers }, device: "webgpu", visionDevice: "wasm", onStatus }); }
+    finally { clearInterval(poll); }
+    $("#bar").value = 100;
+    const secs = (performance.now() - t0) / 1000;
+    setStatus(sub(T.s_ready, { dev: model.device, s: num(secs) }));
+    $("#load").hidden = true; $("#prog").hidden = true; $("#pergunta").hidden = false; $("#req").hidden = true;
+    store.set("vj-sessao", "1");
+    try { Promise.resolve(ort.env.webgpu?.device).then((d) => d?.lost?.then((info) => { events.push({ t: Date.now(), e: "device-lost", reason: info?.reason }); notice(T.gpu_lost); })).catch(() => {}); } catch {}
+    window.s1s2demo.loadMs = performance.now() - t0; window.s1s2demo.loadedBytes = counted;
+    if (!current) pickExample(0);
+  } catch (e) {
+    console.error(e);
+    setStatus(T.s_err + String(e?.message ?? e));
+    $("#load").disabled = false; $("#load").textContent = sub(T.load, { gb: GB }); $("#prog").hidden = true;
+  } finally { loading = false; }
+}
+$("#load").textContent = sub(T.load, { gb: GB });
+$("#load").onclick = load;
+$("#force").onclick = () => { $("#unsupported").hidden = true; $("#force").hidden = true; $("#load").hidden = false; load(); };
+(async () => {
+  const why = [];
+  if (mobile) why.push(T.why_mobile);
+  if (safari) why.push(T.why_safari);
+  if (!(await hasGpu())) why.push(T.why_gpu);
+  if (navigator.deviceMemory && navigator.deviceMemory < 8) why.push(T.why_mem);
+  window.s1s2demo.unsupported = why;
+  if (why.length) {
+    $("#unsupported").textContent = sub(T.unsupported, { why: why.join("; ") }); $("#unsupported").hidden = false;
+    $("#load").hidden = true; $("#force").hidden = false;
+  }
+})();
+
+// ---- Imagem: exemplos, arquivo, arrastar e colar. Tudo vira um canvas de no máximo 1024 px no lado maior.
+function toCanvas(img, w, h) {
+  const k = Math.min(1, MAX_SIDE / Math.max(w, h));
+  const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
+  const g = c.getContext("2d", { willReadFrequently: true }); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);   // transparência vira branco
+  g.drawImage(img, 0, 0, c.width, c.height);
+  return c;
+}
+function showImage(canvas, label) {
+  current = { canvas, label };
+  const p = $("#prev"); p.hidden = false; p.width = canvas.width; p.height = canvas.height; p.getContext("2d").drawImage(canvas, 0, 0);
+  p.setAttribute("aria-label", label);
+  $("#what").textContent = sub(T.what_x, { label, w: canvas.width, h: canvas.height }) + (model ? "" : " " + T.need_model);
+  window.s1s2demo.image = { label, w: canvas.width, h: canvas.height };
+}
+function loadImg(src) {
+  return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("image")); i.src = src; });
+}
+async function fromBlob(blob, label) {
+  const url = URL.createObjectURL(blob);
+  try { const i = await loadImg(url); showImage(toCanvas(i, i.naturalWidth, i.naturalHeight), label); exIndex = -1; markExample(); setChips(null); }
+  catch (e) { console.error(e); setStatus(T.no_img); }
+  finally { URL.revokeObjectURL(url); }
+}
+const exBox = $("#exemplos");
+EXAMPLES.forEach((x, i) => {
+  const b = document.createElement("button"); b.type = "button"; b.dataset.i = i; b.setAttribute("aria-pressed", "false");
+  b.innerHTML = `<img src="exemplos/${x.id}.png" alt="" width="256" height="256"><span>${esc(en ? x.en : x.pt)}</span>`;
+  b.onclick = () => pickExample(i); exBox.append(b);
+});
+function markExample() { for (const b of exBox.children) b.setAttribute("aria-pressed", String(Number(b.dataset.i) === exIndex)); }
+async function pickExample(i) {
+  const x = EXAMPLES[i];
+  try { const img = await loadImg(`exemplos/${x.id}.png`); exIndex = i; markExample(); showImage(toCanvas(img, img.naturalWidth, img.naturalHeight), en ? x.en : x.pt); setChips(x); setQuestion(...x.qs[0]); chipIndex = 0; markChips(); }
+  catch (e) { console.error(e); setStatus(T.no_img); }
+}
+$("#file").onchange = async (e) => { const f = e.target.files[0]; if (f) await fromBlob(f, T.up_label); e.target.value = ""; };
+const zona = $("#zona");
+for (const t of ["dragenter", "dragover"]) addEventListener(t, (e) => { if ([...(e.dataTransfer?.types ?? [])].includes("Files")) { e.preventDefault(); zona.classList.add("sobre-zona"); } });
+for (const t of ["dragleave", "drop"]) addEventListener(t, () => zona.classList.remove("sobre-zona"));
+addEventListener("drop", (e) => { const f = [...(e.dataTransfer?.files ?? [])].find((x) => x.type.startsWith("image/")); if (f) { e.preventDefault(); fromBlob(f, T.up_label); } });
+addEventListener("paste", (e) => { const it = [...(e.clipboardData?.items ?? [])].find((x) => x.type.startsWith("image/")); const f = it?.getAsFile(); if (f) { e.preventDefault(); fromBlob(f, T.up_label); } });
+
+// ---- Pergunta e opções (2 a 6)
+const opts = $("#opcoes"), LETTERS = "ABCDEF";
+function relabel() {
+  [...opts.children].forEach((li, i) => { li.querySelector("b").textContent = LETTERS[i]; const inp = li.querySelector("input"); inp.setAttribute("aria-label", sub(T.opt_ph, { n: LETTERS[i] })); inp.placeholder = sub(T.opt_ph, { n: LETTERS[i] }); const r = li.querySelector("button"); r.setAttribute("aria-label", sub(T.remove, { n: LETTERS[i] })); r.hidden = opts.children.length <= MIN_OPTIONS; });
+  $("#add").disabled = opts.children.length >= MAX_OPTIONS;
+}
+function addOption(v = "") {
+  if (opts.children.length >= MAX_OPTIONS) return;
+  const li = document.createElement("li");
+  li.innerHTML = `<b></b><input type="text" class="opt" autocomplete="off" spellcheck="false" maxlength="120"><button type="button">×</button>`;
+  li.querySelector("input").value = v; li.querySelector("input").onkeydown = (e) => { if (e.key === "Enter") ask(); };
+  li.querySelector("button").onclick = () => { if (opts.children.length > MIN_OPTIONS) { li.remove(); relabel(); } };
+  opts.append(li); relabel();
+}
+function setQuestion(q, o) { $("#q").value = q; opts.innerHTML = ""; o.forEach((v) => addOption(v)); while (opts.children.length < MIN_OPTIONS) addOption(); }
+$("#add").onclick = () => { addOption(); opts.lastElementChild.querySelector("input").focus(); };
+$("#q").onkeydown = (e) => { if (e.key === "Enter") ask(); };
+const chips = $("#chips");
+function setChips(x) {
+  chips.innerHTML = ""; chips.hidden = !x; if (!x) return;
+  x.qs.forEach(([q, o], i) => { const b = document.createElement("button"); b.type = "button"; b.textContent = q; b.setAttribute("aria-pressed", "false"); b.onclick = () => { chipIndex = i; setQuestion(q, o); markChips(); }; chips.append(b); });
+  markChips();
+}
+function markChips() { [...chips.children].forEach((b, i) => b.setAttribute("aria-pressed", String(i === chipIndex))); }
+addOption(); addOption(); chips.hidden = true;
+
+// ---- Perguntar
+const ms = (v) => Math.round(v).toLocaleString(LANG);
+function showResult(r, o) {
+  const a = r.answers[0], probs = a.probabilities, best = a.choice;
+  $("#resultados").hidden = false;
+  $("#vence").innerHTML = `${esc(a.decision)}<small>${LETTERS[best]} · ${pct(a.probability)}</small>`;
+  $("#prob").innerHTML = o.map((name, i) => `<li class="${i === best ? "venc" : ""}"><span>${LETTERS[i]}</span><span class="nome">${esc(name)}</span><span class="barra"><i style="width:${(probs[i] * 100).toFixed(1)}%"></i></span><b>${pct(probs[i])}</b></li>`).join("");
+  $("#margem").textContent = sub(T.margin, { m: num(a.margin, 2) });
+  const p = r.cost.parts ?? {};
+  $("#tempo").textContent = sub(T.time, { dev: `${model.device} + wasm`, pre: ms(p.preprocess ?? 0), vis: num((p.vision ?? 0) / 1000), pfx: num((p.prefix ?? 0) / 1000), br: num((p.branches ?? 0) / 1000), tot: num(r.cost.ms / 1000) });
+}
+async function ask() {
+  if (!model || !current || running) return;
+  const q = $("#q").value.trim(), o = [...opts.querySelectorAll("input")].map((i) => i.value.trim());
+  if (!q || o.length < MIN_OPTIONS || o.length > MAX_OPTIONS || o.some((v) => !v) || new Set(o.map((v) => v.toLowerCase())).size !== o.length) { setStatus(T.err_opts); return; }
+  running = true; $("#ask").disabled = true; setStatus(T.working); $("#resultados").hidden = false; $("#vence").textContent = "…"; $("#prob").innerHTML = ""; $("#margem").textContent = ""; $("#tempo").textContent = "";
+  try {
+    const { canvas } = current;
+    const d = canvas.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, canvas.width, canvas.height);
+    const r = await model.decide({ image: { rgb: d.data, width: canvas.width, height: canvas.height, channels: 4 }, questions: [{ name: "choice", instruction: q, options: o }] });
+    showResult(r, o); setStatus("");
+    window.s1s2demo.last = { question: q, options: o, decision: r.answers[0].decision, choice: r.answers[0].choice, probability: r.answers[0].probability, probabilities: r.answers[0].probabilities, margin: r.answers[0].margin, ms: r.cost.ms, parts: r.cost.parts };
+    return window.s1s2demo.last;
+  } catch (err) { console.error(err); setStatus(T.err_run + String(err?.message ?? err)); $("#vence").textContent = "–"; }
+  finally { running = false; $("#ask").disabled = false; }
+}
+$("#ask").onclick = ask;
+
+// Ganchos para teste automático (não aparecem na página)
+window.s1s2demo = Object.assign(window.s1s2demo ?? {}, { events, load, ask, pickExample, version: S1S2_VERSION, get model() { return model; } });
+window.dispatchEvent(new Event("s1s2demo-ready"));
+</script>
+</body>
+</html>
