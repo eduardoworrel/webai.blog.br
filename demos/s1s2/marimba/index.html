@@ -311,8 +311,12 @@ let hasGpu = false;
 let counted = 0, fromCache = false;
 async function openCache() { try { return await caches.open(CACHE_NAME); } catch { return null; } }
 function counter() { return new TransformStream({ transform(c, ctl) { counted += c.byteLength; setProgress(); ctl.enqueue(c); } }); }
+let phase = "download";   // "download" mostra a porcentagem; "prep" mostra uma mensagem só (evita a mensagem piscando perto dos 99 %)
+function enterPrep() { if (phase === "prep") return; phase = "prep"; $("#bar").removeAttribute("value"); setStatus(T.s_prep); }
 function setProgress() {
+  if (phase === "prep") return;
   const p = Math.min(99, Math.round(counted / EXPECTED_BYTES * 100));
+  if (p >= 99) { enterPrep(); return; }
   $("#bar").value = p;
   setStatus(`${fromCache ? T.s_cache : T.s_download}: ${p} %`);
 }
@@ -355,6 +359,7 @@ refreshCached();
 // ---- Carregar o modelo
 const STAGE = [[/audio readers/, "st_readers"], [/audio tower/, "st_tower"], [/decoder tokens/, "st_tokens"], [/decoder embeddings/, "st_emb"], [/loading decoder/, "st_dec"], [/decoder not loaded/, "st_nodec"]];
 function onStatus(m) {
+  if (phase === "prep") return;
   const hit = STAGE.find(([re]) => re.test(m));
   if (hit) setStatus(T[hit[1]]);          // durante o download, a porcentagem da barra toma o lugar
 }
@@ -363,14 +368,14 @@ async function load(light = false) {
   loading = true; wasLight = light; EXPECTED_BYTES = light ? ENC_BYTES : EXPECTED_FULL;
   window.s1s2demo.light = light;
   const t0 = performance.now();
-  $("#load").disabled = true; $("#load-alt").hidden = true; $("#load").textContent = T.loading; $("#prog").hidden = false; $("#bar").value = 0; counted = 0;
+  $("#load").disabled = true; $("#load-alt").hidden = true; $("#load").textContent = T.loading; $("#prog").hidden = false; $("#bar").value = 0; counted = 0; phase = "download";
   try {
     installFetch();
     ort = await import(`${ORT_BASE}ort.webgpu.min.mjs`);
     ort.env.wasm.wasmPaths = ORT_BASE;
     ort.env.wasm.numThreads = 1;                       // sem cabeçalhos especiais (COOP/COEP): uma thread basta
     const { loadMedia } = await import(MEDIA_URL);
-    const poll = setInterval(() => { if (counted >= EXPECTED_BYTES * .995) setStatus(T.s_prep); }, 500);
+    const poll = setInterval(() => { if (counted >= EXPECTED_BYTES * .995) enterPrep(); }, 500);
     try { model = await loadMedia({ manifest: MANIFEST_URL, modules: { ort }, decoder: light ? false : "auto", onStatus }); }
     finally { clearInterval(poll); }
     $("#bar").value = 100;
