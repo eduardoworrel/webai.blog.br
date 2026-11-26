@@ -1,0 +1,184 @@
+{
+ "schema": "s1s2.manifest/1",
+ "id": "s5-nano.sentinel",
+ "base": {
+  "repo": "maritaca-ai/S5-nano",
+  "revision": "fe3a3581c33cb22917770ef1987b7c6e30929425"
+ },
+ "hiddenSize": 2560,
+ "layer": {
+  "read": "final",
+  "norm": "in-graph"
+ },
+ "tokenizer": {
+  "repo": "eduardoworrel/S5-nano-ContractNLI-CLINC-SIB-ONNX-genai-int4-S1S2",
+  "revision": "1ac568beeb63941d44932d1c13c68bb7457ffe15",
+  "files": {
+   "tokenizer": {
+    "path": "tokenizer.json",
+    "sha256": "a5cd9732badce41de57e6efce8302930ded1c1188c5f81feb2bd6c24c4a1941f",
+    "size": 19989339
+   },
+   "config": {
+    "path": "tokenizer_config.json",
+    "sha256": "004893c9690cd050e617619eef34e6a13fe58ac4a3f4174f38eed5e408a89636",
+    "size": 1465
+   }
+  }
+ },
+ "eos": [
+  {
+   "id": 248044,
+   "text": "<|endoftext|>"
+  },
+  {
+   "id": 248046,
+   "text": "<|im_end|>"
+  }
+ ],
+ "warmup": {
+  "id": 248044,
+  "text": "<|endoftext|>"
+ },
+ "encoding": {
+  "kind": "tagged",
+  "template": "<|im_start|>user\n{state}\n\n{question}<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n",
+  "question": {
+   "predicate": "{instructions}",
+   "choice": "{instructions}\n{options}",
+   "score": "{instructions}"
+  },
+  "option": "<|box_start|>{label}<|box_end|>\n",
+  "optionSeparator": "",
+  "forbiddenInLabels": [
+   "<|box_end|>",
+   "<|box_start|>"
+  ],
+  "escapeSpecial": true,
+  "escapeLiterals": []
+ },
+ "markers": {
+  "decide": {
+   "text": "<|im_end|>",
+   "at": "last-token",
+   "tokens": [
+    {
+     "id": 248046,
+     "text": "<|im_end|>"
+    }
+   ]
+  },
+  "option": {
+   "text": "<|box_end|>",
+   "at": "last-token",
+   "tokens": [
+    {
+     "id": 248050,
+     "text": "<|box_end|>"
+    }
+   ]
+  }
+ },
+ "readout": {
+  "predicate": "last",
+  "choice": "option",
+  "score": "last"
+ },
+ "logits": {
+  "predicate": {
+   "yes": {
+    "id": 13624,
+    "text": "Sim"
+   },
+   "no": {
+    "id": 49090,
+    "text": "Não"
+   }
+  },
+  "choice": {
+   "map": "first-token"
+  },
+  "score": {
+   "map": "first-token"
+  }
+ },
+ "defaults": {
+  "method": {
+   "predicate": "logits",
+   "choice": "logits",
+   "score": "logits"
+  },
+  "maxSafeTokens": 2048
+ },
+ "generation": {
+  "turn": "<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n",
+  "continue": "{answer}<|im_end|>\n<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n",
+  "answers": {
+   "predicate": [
+    "Não",
+    "Sim"
+   ]
+  }
+ },
+ "builds": {
+  "genai-int4-webgpu": {
+   "runtime": "genai",
+   "repo": "eduardoworrel/S5-nano-ContractNLI-CLINC-SIB-ONNX-genai-int4-S1S2",
+   "revision": "1ac568beeb63941d44932d1c13c68bb7457ffe15",
+   "files": {
+    "model": {
+     "path": "model.onnx",
+     "sha256": "fd58ebc2c16c99bb30d4e7ddeb461941f0000b585f995cda2767b5b350d76c13",
+     "size": 413346
+    },
+    "data": {
+     "path": "model.onnx.data",
+     "sha256": "69afae35ac8c823a320ec87e337aa35b5cc5b0d1c2f82d9259cedeb6f5f887a0",
+     "size": 2440274944
+    },
+    "genaiConfig": {
+     "path": "genai_config.json",
+     "sha256": "11d5ca2a6150a9ca0c567ec2808f471d11b05f2d7bafb1f4eaa3ea8a632b6e4e",
+     "size": 1974
+    }
+   },
+   "hiddenOutput": "hidden_states",
+   "devices": [
+    "webgpu"
+   ],
+   "dtype": "int4",
+   "kvHeadDim": 256,
+   "fidelity": null
+  }
+ },
+ "tasks": {
+  "sn": {
+   "type": "predicate",
+   "instructions": "O texto cumpre a instrução? Responda apenas Sim ou Não.",
+   "tokens": {
+    "yes": {
+     "id": 13624,
+     "text": "Sim"
+    },
+    "no": {
+     "id": 49090,
+     "text": "Não"
+    }
+   }
+  },
+  "ab": {
+   "type": "predicate",
+   "instructions": "O texto cumpre a instrução? Responda apenas A (cumpre) ou B (não cumpre).",
+   "tokens": {
+    "yes": {
+     "id": 32,
+     "text": "A"
+    },
+    "no": {
+     "id": 33,
+     "text": "B"
+    }
+   }
+  }
+ }
+}
