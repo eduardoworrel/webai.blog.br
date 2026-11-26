@@ -64,7 +64,7 @@ const TX = {
     title: "Demos s1s2.js",
     lede: "Modelos pequenos que respondem perguntas com decisões tipadas, rodando no seu navegador, com a biblioteca s1s2.js.",
     req: "Precisa de um navegador com WebGPU (Chrome ou Edge recentes, no computador). Cada demo baixa o seu modelo uma vez. O áudio e o texto não saem do navegador.",
-    lib: "Biblioteca:", open: "Abrir a demo", exp: "experimental",
+    lib: "Biblioteca:", open: "Abrir a demo", exp: "experimental", soon: "em breve",
     demos: [
       ["marimba", "Marimba", "Áudio: voz, fim de turno, falantes, idioma, palavra dita e transcrição."],
       ["roteador", "Roteador", "Uma passada escolhe entre 7 tópicos e mostra a margem."],
@@ -78,7 +78,7 @@ const TX = {
     title: "s1s2.js demos",
     lede: "Small models that answer questions with typed decisions, running in your browser, with the s1s2.js library.",
     req: "Needs a browser with WebGPU (recent Chrome or Edge, on a computer). Each demo downloads its model once. Audio and text never leave the browser.",
-    lib: "Library:", open: "Open the demo", exp: "experimental",
+    lib: "Library:", open: "Open the demo", soon: "soon", exp: "experimental",
     demos: [
       ["marimba", "Marimba", "Audio: voice, end of turn, speakers, language, spoken word and transcript."],
       ["roteador", "Router", "One pass picks among 7 topics and shows the margin."],
@@ -97,14 +97,15 @@ document.title = `${T.title} · webai.blog.br`;
 $("#home").href = en ? "/en/" : "/"; $("#foot-home").href = en ? "/en/" : "/"; $("#about").href = en ? "/en/about.html" : "/sobre.html";
 const sw = $("#trocar"); sw.href = `?lang=${en ? "pt-BR" : "en"}`; sw.textContent = en ? "Português" : "English"; sw.lang = en ? "pt-BR" : "en"; sw.hreflang = sw.lang;
 for (const e of document.querySelectorAll("[data-t]")) e.textContent = T[e.dataset.t];
+const SOON = new Set(["contrato", "sentinela", "policy-checker"]);   // páginas ainda sem teste no navegador: sem link
 const keep = qs.has("lang") ? `?lang=${LANG}` : "";
 for (const [slug, name, line, exp] of T.demos) {
-  const li = document.createElement("li"), a = document.createElement("a");
-  a.className = "cartao"; a.href = `./${slug}/${keep}`;
+  const li = document.createElement("li"), a = document.createElement(SOON.has(slug) ? "div" : "a");
+  a.className = "cartao"; if (SOON.has(slug)) a.setAttribute("aria-disabled", "true"); else a.href = `./${slug}/${keep}`;
   const b = document.createElement("b"); b.textContent = name;
   if (exp) { const t = document.createElement("small"); t.className = "etiqueta"; t.textContent = T.exp; b.append(" ", t); }
   const s = document.createElement("span"); s.textContent = line;
-  const go = document.createElement("span"); go.className = "ir"; go.textContent = T.open + " →";
+  const go = document.createElement("span"); go.className = "ir"; go.textContent = SOON.has(slug) ? T.soon : T.open + " →";
   a.append(b, s, go); li.append(a); $("#lista").append(li);
 }
 </script>
