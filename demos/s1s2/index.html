@@ -97,7 +97,7 @@ document.title = `${T.title} · webai.blog.br`;
 $("#home").href = en ? "/en/" : "/"; $("#foot-home").href = en ? "/en/" : "/"; $("#about").href = en ? "/en/about.html" : "/sobre.html";
 const sw = $("#trocar"); sw.href = `?lang=${en ? "pt-BR" : "en"}`; sw.textContent = en ? "Português" : "English"; sw.lang = en ? "pt-BR" : "en"; sw.hreflang = sw.lang;
 for (const e of document.querySelectorAll("[data-t]")) e.textContent = T[e.dataset.t];
-const SOON = new Set(["contrato", "sentinela", "policy-checker"]);   // páginas ainda sem teste no navegador: sem link
+const SOON = new Set([]);   // demos ainda sem teste no navegador (sem link)
 const keep = qs.has("lang") ? `?lang=${LANG}` : "";
 for (const [slug, name, line, exp] of T.demos) {
   const li = document.createElement("li"), a = document.createElement(SOON.has(slug) ? "div" : "a");

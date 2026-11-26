@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verificador de política de privacidade · webai.blog.br</title>
+<meta name="description" content="Veja quais exigências da LGPD, do GDPR ou do CCPA uma política de privacidade trata, trecho a trecho. Roda no seu navegador.">
+<link rel="canonical" href="https://webai.blog.br/demos/s1s2/policy-checker/">
+<meta property="og:title" content="Verificador de política de privacidade">
+<meta property="og:description" content="Veja quais exigências da LGPD, do GDPR ou do CCPA uma política de privacidade trata, trecho a trecho. Roda no seu navegador.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://webai.blog.br/demos/s1s2/policy-checker/">
+<meta name="color-scheme" content="light">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/style.css">
+<script type="importmap">
+{ "imports": {
+  "@s1s2/web": "https://cdn.jsdelivr.net/npm/@s1s2/web@0.2.1/dist/index.js",
+  "@s1s2/web/media": "https://cdn.jsdelivr.net/npm/@s1s2/web@0.2.1/dist/media.js",
+  "onnxruntime-web/webgpu": "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.1/dist/ort.webgpu.min.mjs",
+  "onnxruntime-web/wasm": "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.1/dist/ort.webgpu.min.mjs",
+  "onnxruntime-web": "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.1/dist/ort.webgpu.min.mjs",
+  "onnxruntime-common": "https://cdn.jsdelivr.net/npm/onnxruntime-common@1.31.1/dist/esm/index.js",
+  "@huggingface/transformers": "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.1/dist/transformers.web.js"
+} }
+</script>
+<style>
+  .demo { max-width: 56rem; margin: 0 auto; padding-top: 2.5rem; }
+  .demo h1 { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.1; letter-spacing: -.02em; margin: 0 0 .8rem; }
+  .demo h2 { font-size: 1.3rem; line-height: 1.25; margin: 0 0 .7rem; }
+  .demo .lede { font-size: 1.2rem; line-height: 1.5; color: var(--fg2); margin: 0 0 1.2rem; max-width: 42rem; }
+  .demo p { margin: 0 0 .8rem; }
+  .painel { border: 1px solid var(--line); border-radius: 16px; background: #fff; padding: 1.2rem 1.3rem; margin: 0 0 1.4rem; }
+  .painel > :last-child { margin-bottom: 0; }
+  .linha { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+  .fraco { color: var(--fg2); font-size: .95rem; }
+  button, .botao { font: inherit; font-weight: 600; font-size: .98rem; line-height: 1.2; padding: .6rem 1.05rem; border-radius: 999px; border: 1px solid var(--line2); background: #fff; color: var(--fg); cursor: pointer; min-height: 2.75rem; display: inline-flex; align-items: center; }
+  button:hover:not(:disabled), .botao:hover { border-color: var(--accent); color: var(--accent); }
+  button.principal { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.principal:hover:not(:disabled) { background: var(--accent-ink); border-color: var(--accent-ink); color: #fff; }
+  button:disabled { opacity: .5; cursor: default; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .botao:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+  progress { width: 100%; height: .7rem; accent-color: var(--accent); }
+  .aviso { background: var(--accent-soft); border-left: 4px solid var(--accent); border-radius: 0 12px 12px 0; padding: .8rem 1rem; font-size: .96rem; }
+  .aviso p { margin: 0; }
+  .aviso p + p { margin-top: .5rem; }
+  .barra { height: .5rem; background: var(--line); border-radius: 999px; overflow: hidden; margin: .1rem 0 .6rem; }
+  .barra i { display: block; height: 100%; width: 0; background: var(--accent); }
+  .demo ul.lista { padding-left: 1.2rem; margin: 0 0 .8rem; }
+  .demo ul.lista li { max-width: none; }
+  .demo ul.lista li + li { margin-top: .4rem; }
+  .creditos { font-size: .95rem; color: var(--fg2); }
+  .creditos li { max-width: none; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  [hidden] { display: none !important; }
+  @media (max-width: 520px) {
+    .painel { padding: 1rem; }
+    button, .botao { padding: .55rem .9rem; }
+  }
+  .demo label.rotulo, .demo .rotulo { display: block; font-weight: 600; font-size: .95rem; color: var(--fg2); margin: 0 0 .35rem; }
+  .demo textarea, .demo .campo-texto { width: 100%; font: .95rem/1.5 var(--mono); padding: .7rem .8rem; border: 1px solid var(--line2); border-radius: 12px; background: #fff; color: var(--fg); min-height: 2.75rem; resize: vertical; }
+  .demo .campo-texto { font-family: var(--font); }
+  .demo input[type=range] { width: min(100%, 18rem); accent-color: var(--accent); }
+  .demo .marca-cb { display: flex; gap: .6rem; align-items: center; font-weight: 500; }
+  .demo .marca-cb input { width: 1.2rem; height: 1.2rem; accent-color: var(--accent); }
+  .resumo { font-size: 1.05rem; color: var(--fg2); margin: 0 0 .9rem; font-variant-numeric: tabular-nums; }
+  .resumo b { color: var(--fg); }
+  .grande { font-size: 2.4rem; line-height: 1.1; font-weight: 700; color: var(--fg); letter-spacing: -.01em; }
+  #results { border: 1px solid var(--line); border-radius: 16px; background: #fff; padding: 0 1.3rem; margin: 0 0 1.4rem; }
+  .item { border-top: 1px solid var(--line); padding: 1.1rem 0; min-width: 0; }
+  .item:first-child { border-top: 0; }
+  .item .msg { margin: 0 0 .4rem; overflow-wrap: anywhere; max-width: none; }
+  .dec { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .9rem; margin: .1rem 0 .4rem; }
+  .dec .resp { font-size: 1.7rem; line-height: 1.15; font-weight: 700; overflow-wrap: anywhere; }
+  .dec .resp.sim { color: #166534; }
+  .dec .resp.nao { color: var(--accent-ink); }
+  .dec .resp.nd { color: var(--fg2); font-size: 1.35rem; }
+  .dec .resp.inc { color: var(--accent-ink); background: var(--accent-bg); border-radius: 999px; padding: .1rem .7rem; font-size: 1.2rem; }
+  .dec .prob { font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .det, .item .fraco { margin: .2rem 0 0; max-width: none; }
+  .resumo2 { margin: .5rem 0 0; padding: .6rem .9rem; background: var(--accent-soft); border-left: 4px solid var(--accent); border-radius: 0 12px 12px 0; max-width: none; overflow-wrap: anywhere; }
+  .tag { font-size: .75rem; color: var(--fg2); border: 1px solid var(--line2); border-radius: 6px; padding: 0 .4rem; margin-left: .3rem; white-space: nowrap; }
+  .leitura { margin-top: .5rem; }
+  .leitura summary, .demo details > summary { cursor: pointer; font-weight: 600; color: var(--accent-ink); min-height: 2rem; }
+  .leitura pre { margin: .5rem 0 0; padding: .7rem; background: var(--muted-bg); border-radius: 10px; font: .82rem/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+  blockquote.trecho { margin: .5rem 0 0; padding: .4rem .8rem; border-left: 4px solid var(--accent); font-size: .95rem; overflow-wrap: anywhere; }
+  blockquote.trecho.ruim { border-left-color: var(--line2); color: var(--fg2); }
+  button.mini { min-height: 2.5rem; font-size: .9rem; padding: .35rem .85rem; }
+  button.lei[aria-pressed=true] { background: var(--fg); color: #fff; border-color: var(--fg); }
+  button.lei[aria-pressed=true]:hover { color: #fff; }
+  .demo details.painel > summary { font-size: 1.15rem; }
+  .demo details.painel[open] > summary { margin-bottom: .8rem; }
+
+</style>
+</head>
+<body>
+<header class="topo">
+<a class="marca" href="/" id="home"><img src="/logo.svg" alt="" width="28" height="28"><span>webai.blog.br</span></a>
+<nav aria-label="webai.blog.br">
+<a href="/" data-t="nav_posts"></a>
+<a href="https://webai.blog.br/state-of-the-art/">State of the Art</a>
+<a href="https://webai.blog.br/observatorio/">Observatório</a>
+<a href="/sobre.html" id="about" data-t="nav_about"></a>
+<a class="idioma" id="trocar" href="?lang=en" lang="en" hreflang="en">English</a>
+</nav>
+</header>
+<main>
+<div class="demo">
+
+<h1 data-t="title"></h1>
+<p class="lede" data-t="lede"></p>
+
+<section class="painel" aria-labelledby="h-modelo">
+  <h2 id="h-modelo" data-t="h_model"></h2>
+  <div class="aviso" id="req">
+    <p data-h="req"></p>
+    <p id="gpu" role="status"></p>
+  </div>
+  <p class="linha" style="margin-top:1rem">
+    <button id="load" class="principal" type="button"></button>
+    <button id="forget" type="button" hidden data-t="forget"></button>
+  </p>
+  <div id="prog" hidden>
+    <progress id="bar" max="100" value="0" aria-labelledby="status"></progress>
+  </div>
+  <p id="status" class="fraco" role="status" aria-live="polite"></p>
+</section>
+
+<section class="painel" aria-labelledby="h-entrada">
+  <h2 id="h-entrada" data-t="h_input"></h2>
+  <div class="linha" role="group" aria-labelledby="lei-rot">
+    <span class="rotulo" id="lei-rot" style="margin:0" data-t="law_label"></span>
+    <button type="button" class="lei" data-law="GDPR" aria-pressed="true">GDPR</button>
+    <button type="button" class="lei" data-law="LGPD" aria-pressed="false">LGPD</button>
+    <button type="button" class="lei" data-law="CCPA" aria-pressed="false">CCPA</button>
+  </div>
+  <label class="rotulo" for="text" style="margin-top:.9rem" data-t="input_label"></label>
+  <textarea id="text" spellcheck="false" rows="12"></textarea>
+  <p class="linha" style="margin-top:.8rem"><button id="run" class="principal" type="button" disabled></button></p>
+  <p id="runstatus" class="fraco" role="status" aria-live="polite"></p>
+</section>
+<section id="resultados" hidden aria-labelledby="h-res">
+  <h2 id="h-res" data-t="h_results"></h2>
+  <p class="resumo" id="summary" aria-live="polite"></p>
+  <div id="results"></div>
+</section>
+
+
+<details class="painel">
+  <summary data-t="h_details"></summary>
+  <ul class="lista" id="limits"></ul>
+  <p class="linha"><label class="marca-cb"><input type="checkbox" id="primaryOnly" checked> <span data-t="primary_label"></span></label></p>
+<p class="linha"><label class="marca-cb"><input type="checkbox" id="quote"> <span data-t="quote_label"></span></label></p>
+
+</details>
+
+<section class="painel" aria-labelledby="h-cred">
+  <h2 id="h-cred" data-t="h_credits"></h2>
+  <ul class="lista creditos" id="credits"></ul>
+</section>
+
+</div>
+</main>
+<footer class="rodape">
+<p><a href="/" data-t="nav_posts" id="foot-home"></a> · <a href="https://github.com/eduardoworrel/webai.blog.br/blob/main/CONTRIBUTING.md" data-t="foot_write"></a> · <a href="https://github.com/eduardoworrel/state-of-the-art-webai" data-t="foot_map"></a></p>
+</footer>
+
+<script type="module">
+import * as ort from "onnxruntime-web/webgpu";
+import * as tjs from "@huggingface/transformers";
+import { S1S2 } from "@s1s2/web";
+
+const PAGE_TX = {
+  "pt-BR": {
+    title: "Verificador de política de privacidade",
+    lede: "O modelo lê a política trecho a trecho e diz quais exigências da LGPD, do GDPR ou do CCPA ela trata.",
+    h_input: "Política", input_label: "Texto da política", law_label: "Lei", run: "Verificar a política", run_wait: "Carregue o modelo primeiro", empty: "Cole o texto da política.",
+    h_results: "Resultado", of_req: "exigências tratadas em ao menos um trecho", passages: "trechos", addressed: "Tratada", notfound: "Não encontrada", secondary: "secundária", req_col: "Exigência", res_col: "Resultado", best: "Melhor trecho",
+    passage: "Trecho", reading: "Lendo o trecho {i} de {n}…", quoting: "Citando “{n}”…", switching: "Trocando de lei…", toolong_skip: "trechos longos demais foram pulados", s: "s",
+    primary_label: "Só as exigências principais (mais rápido)", quote_label: "Citar a frase que mostra o trecho (mais lento)",
+    limits: ["Isto não é parecer jurídico: “tratada” quer dizer que um trecho fala do assunto, não que a política está em conformidade. O modelo pode errar nos dois sentidos.", "Treinado com políticas do GDPR (inglês) e da LGPD (português); o CCPA não fez parte do treino. O CCPA usa o mesmo modelo do GDPR, em inglês.", "Cada trecho é lido duas vezes, com as opções em ordem trocada, e a probabilidade é a média.", "O texto não sai da página: o modelo roda no seu navegador. A política de exemplo foi escrita para esta página."],
+    credits: ['Modelo: <a href="https://huggingface.co/eduardoworrel/S5-nano-GDPR-LGPD-ONNX-genai-int4-S1S2">S5-nano GDPR + LGPD</a> (int4, ONNX), GPL-3.0.', 'Dados: GDPR-Transparency-200 (<a href="https://github.com/tomcory/privacy-policy-annotator">tomcory/privacy-policy-annotator</a>, GPL-3.0) e corpus Claudinha (Tocchini et al., <a href="https://zenodo.org/records/13371639">Zenodo</a>, CC BY 4.0).', 'Exigências: GDPR arts. 13 e 14; LGPD; CCPA §1798.130 e 11 CCR §7011.']
+  },
+  en: {
+    title: "Privacy policy checker",
+    lede: "The model reads a policy passage by passage and says which requirements of the GDPR, LGPD or CCPA it addresses.",
+    h_input: "Policy", input_label: "Policy text", law_label: "Law", run: "Check the policy", run_wait: "Load the model first", empty: "Paste the policy text.",
+    h_results: "Result", of_req: "requirements addressed by at least one passage", passages: "passages", addressed: "Addressed", notfound: "Not found", secondary: "secondary", req_col: "Requirement", res_col: "Result", best: "Best passage",
+    passage: "Passage", reading: "Reading passage {i} of {n}…", quoting: "Quoting “{n}”…", switching: "Switching law…", toolong_skip: "passages that were too long were skipped", s: "s",
+    primary_label: "Core requirements only (faster)", quote_label: "Quote the sentence that shows it (slower)",
+    limits: ["This is not legal advice: “addressed” means a passage talks about the subject, not that the policy complies. The model can be wrong in both directions.", "Trained on GDPR (English) and LGPD (Portuguese) policies; the CCPA was not part of the training. The CCPA uses the same model as the GDPR, in English.", "Each passage is read twice, with the options in swapped order, and the probability is the average.", "The text never leaves the page: the model runs in your browser. The example policy was written for this page."],
+    credits: ['Model: <a href="https://huggingface.co/eduardoworrel/S5-nano-GDPR-LGPD-ONNX-genai-int4-S1S2">S5-nano GDPR + LGPD</a> (int4, ONNX), GPL-3.0.', 'Data: GDPR-Transparency-200 (<a href="https://github.com/tomcory/privacy-policy-annotator">tomcory/privacy-policy-annotator</a>, GPL-3.0) and the Claudinha corpus (Tocchini et al., <a href="https://zenodo.org/records/13371639">Zenodo</a>, CC BY 4.0).', 'Requirements: GDPR arts. 13 and 14; LGPD; CCPA §1798.130 and 11 CCR §7011.']
+  }
+};
+
+const HUB_REPO = "eduardoworrel/S5-nano-GDPR-LGPD-ONNX-genai-int4-S1S2";
+const MODEL_BYTES = 2440274944 + 413346 + 1974;
+const HUB_PREFIXES = [`https://huggingface.co/${HUB_REPO}/resolve/`];
+const MANIFEST_REV = "e5b9f164aae6fdfee85ca8dba930916c0d3f4e43";   // revisão do Hub com os manifests; os pesos ficam presos pelo manifest (40 hex)
+const MANIFEST_URL = { en: `https://huggingface.co/${HUB_REPO}/resolve/${MANIFEST_REV}/manifest.en.json`, pt: `https://huggingface.co/${HUB_REPO}/resolve/${MANIFEST_REV}/manifest.pt.json` };
+
+// Políticas de exemplo, escritas para esta página.
+const SAMPLE_EN = `Privacy Policy of Fernwood Books
+
+Who we are. Fernwood Books Ltd., 12 Mill Lane, Bristol, is the controller of your personal data. You can write to us at privacy@fernwood.example.
+
+Data protection officer. Our data protection officer is Dr. Amara Cole and can be reached at dpo@fernwood.example.
+
+What we collect and why. We collect your name, e-mail address, delivery address and order history. We use them to process your orders, to send you the books you bought and to answer your questions. We also use your e-mail address to send a monthly newsletter if you agree to receive it.
+
+Who receives your data. We share your delivery address with our courier partners, and payment details are handled by our payment provider. We do not sell your data.
+
+Where the data comes from. We receive the data directly from you when you create an account or place an order. If you sign in with a social network account, we also receive your name and profile picture from that network.
+
+How long we keep it. We keep order records for six years for tax reasons. Newsletter data is deleted when you unsubscribe.
+
+Your rights. You may ask us for a copy of your data, ask us to correct it, to delete it or to restrict its use, and you may object to its use for marketing. You may also receive your data in a portable format. If you agreed to the newsletter, you can withdraw your consent at any time using the link in each e-mail. You can complain to the Information Commissioner's Office.`;
+const SAMPLE_PT = `Política de Privacidade da Livraria Figueira
+
+Quem somos. A Livraria Figueira Ltda., com sede na Rua do Moinho, 12, em Curitiba, é a controladora dos seus dados pessoais. Fale conosco em privacidade@figueira.example.
+
+Encarregado. Nossa encarregada pelo tratamento de dados pessoais é a Dra. Amara Cole, no e-mail dpo@figueira.example.
+
+O que coletamos e para quê. Coletamos nome, e-mail, endereço de entrega e histórico de pedidos. Usamos esses dados para processar pedidos, enviar os livros comprados e responder às suas dúvidas. Também usamos o e-mail para enviar um boletim mensal, se você concordar em recebê-lo.
+
+Com quem compartilhamos. Compartilhamos o endereço de entrega com as transportadoras parceiras, e os dados de pagamento ficam com a empresa de pagamentos. Não vendemos seus dados.
+
+De onde vêm os dados. Recebemos os dados diretamente de você, ao criar a conta ou fazer um pedido.
+
+Por quanto tempo guardamos. Guardamos os registros de pedidos por cinco anos, por razões fiscais. Os dados do boletim são apagados quando você cancela a inscrição.
+
+Seus direitos. Você pode pedir a confirmação de que tratamos seus dados, o acesso a eles, a correção, a anonimização ou a eliminação, e a portabilidade. Se concordou com o boletim, pode revogar o consentimento a qualquer momento pelo link de cada e-mail.`;
+
+// Nomes dos requisitos em português para a tela (as perguntas ao modelo seguem o arquivo requirements.json, sem mudança).
+const NAME_PT = {
+  "the identity of the controller": "identidade do controlador", "the data protection officer": "encarregado / DPO", "the purposes of processing": "finalidades do tratamento",
+  "the right of access": "direito de acesso", "the right to rectification": "direito de retificação", "the right to data portability": "direito à portabilidade",
+  "the right to withdraw consent": "direito de retirar o consentimento", "the recipients of the data": "destinatários dos dados", "the source of the data": "origem dos dados",
+  "the contact details of the controller": "contato do controlador", "the categories of personal data": "categorias de dados pessoais", "the legal basis for processing": "base legal",
+  "the legitimate interests pursued": "interesses legítimos", "the storage period": "prazo de guarda", "transfers to third countries": "transferência para outros países",
+  "whether providing the data is mandatory": "obrigatoriedade de fornecer os dados", "automated decision-making": "decisões automatizadas", "the right to erasure": "direito ao apagamento",
+  "the right to restriction of processing": "direito à limitação do tratamento", "the right to object": "direito de oposição", "the right to lodge a complaint": "direito de reclamar à autoridade",
+  "the right to confirm that processing exists": "confirmação de que há tratamento", "express consent": "consentimento expresso", "the form and duration of processing": "forma e duração do tratamento",
+  "the categories of data processed": "categorias de dados tratados", "the right to anonymization, blocking or deletion": "anonimização, bloqueio ou eliminação", "the right to deletion": "direito à eliminação",
+  "the option not to consent": "possibilidade de não consentir", "automated decisions": "decisões automatizadas", "the right to know": "direito de saber", "the right to correct": "direito de corrigir",
+  "the disclosure of personal information to third parties": "divulgação a terceiros", "the right to delete": "direito de apagar", "the categories of personal information collected": "categorias coletadas",
+  "how to exercise privacy rights": "como exercer os direitos", "the sale of personal information": "venda de dados pessoais", "the right to opt out of sale": "direito de recusar a venda",
+  "the right to limit the use of sensitive personal information": "limitar o uso de dados sensíveis", "the right to non-discrimination": "não discriminação", "the date of the last update": "data da última atualização"
+};
+const reqName = (r) => (en ? r.name : NAME_PT[r.name] ?? r.name);
+
+// ---- Versões fixadas: tudo o que a página baixa vem destes endereços, com versão ou commit (ver o import map no topo).
+const S1S2_VERSION = "0.2.1";
+const ORT_VERSION = "1.31.1";
+const ORT_BASE = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_VERSION}/dist/`;
+const CACHE_NAME = "s1s2-text-demos-v1";
+const HUB_PREFIX = `https://huggingface.co/${HUB_REPO}/resolve/`;
+
+const COMMON_TX = {
+  "pt-BR": {
+    nav_posts: "Posts", nav_about: "Sobre", foot_write: "Escreva um post", foot_map: "Contribua com o mapa",
+    h_model: "Modelo",
+    req: "<b>Requisitos.</b> Um navegador com WebGPU (Chrome ou Edge recentes, no computador). O download é grande (≈{gb} GB) e acontece uma vez: depois o modelo fica guardado no navegador. O que você escreve não sai da página.",
+    gpu_yes: "WebGPU disponível neste navegador.", gpu_no: "WebGPU não disponível aqui: esta demo precisa dele.", gpu_check: "Verificando WebGPU…",
+    load: "Carregar o modelo (≈{gb} GB, baixa uma vez)", load_cached: "Carregar o modelo (já guardado neste navegador)", loading: "Carregando…", forget: "Apagar o modelo guardado",
+    forgot: "Modelo guardado apagado deste navegador.", s_check: "Conferindo os arquivos…", s_download: "Baixando", s_cache: "Lendo do navegador", s_prep: "Preparando o modelo (pode levar alguns segundos)…",
+    s_ready: "Modelo pronto ({s} s).", s_loaded: "Modelo carregado", s_err: "Não foi possível carregar o modelo: ", s_nogpu: "Sem WebGPU",
+    h_details: "Detalhes e limites", h_credits: "Créditos e licenças", seeread: "Ver a leitura", q_label: "Pergunta", opts_label: "Opções", pick_label: "Escolha", prob_label: "probabilidade", margin_label: "margem",
+    credit_lib: 'Biblioteca: <a href="https://github.com/eduardoworrel/s1s2.js">s1s2.js</a> (<code>@s1s2/web {v}</code>, MIT), com <a href="https://onnxruntime.ai/">ONNX Runtime Web</a> {o} e <a href="https://github.com/huggingface/transformers.js">Transformers.js</a> 4.3.1.',
+    credit_base: 'Modelo-base: <a href="https://huggingface.co/maritaca-ai/S5-nano">S5-nano</a> (Maritaca AI), Apache-2.0.'
+  },
+  en: {
+    nav_posts: "Posts", nav_about: "About", foot_write: "Write a post", foot_map: "Contribute to the map",
+    h_model: "Model",
+    req: "<b>Requirements.</b> A browser with WebGPU (recent Chrome or Edge, on a computer). The download is large (≈{gb} GB) and happens once: the model then stays stored in the browser. What you write never leaves the page.",
+    gpu_yes: "WebGPU is available in this browser.", gpu_no: "WebGPU is not available here: this demo needs it.", gpu_check: "Checking WebGPU…",
+    load: "Load the model (≈{gb} GB, downloads once)", load_cached: "Load the model (already stored in this browser)", loading: "Loading…", forget: "Delete the stored model",
+    forgot: "Stored model deleted from this browser.", s_check: "Checking the files…", s_download: "Downloading", s_cache: "Reading from the browser", s_prep: "Preparing the model (may take a few seconds)…",
+    s_ready: "Model ready ({s} s).", s_loaded: "Model loaded", s_err: "Could not load the model: ", s_nogpu: "No WebGPU",
+    h_details: "Details and limits", h_credits: "Credits and licences", seeread: "See the reading", q_label: "Question", opts_label: "Options", pick_label: "Choice", prob_label: "probability", margin_label: "margin",
+    credit_lib: 'Library: <a href="https://github.com/eduardoworrel/s1s2.js">s1s2.js</a> (<code>@s1s2/web {v}</code>, MIT), with <a href="https://onnxruntime.ai/">ONNX Runtime Web</a> {o} and <a href="https://github.com/huggingface/transformers.js">Transformers.js</a> 4.3.1.',
+    credit_base: 'Base model: <a href="https://huggingface.co/maritaca-ai/S5-nano">S5-nano</a> (Maritaca AI), Apache-2.0.'
+  }
+};
+const qs = new URLSearchParams(location.search);
+const LANG = (qs.get("lang") ?? navigator.language ?? "en").toLowerCase().startsWith("pt") ? "pt-BR" : "en";
+const en = LANG === "en";
+const T = { ...COMMON_TX[LANG], ...PAGE_TX[LANG] };
+const sub = (s, o) => s.replace(/\{(\w+)\}/g, (_, k) => o[k] ?? "");
+const num = (v, d = 1) => v.toLocaleString(LANG, { minimumFractionDigits: d, maximumFractionDigits: d });
+const pct = (v) => (v > 0.995 && v < 1 ? ">99 %" : v < 0.005 && v > 0 ? "<1 %" : `${Math.round(v * 100)} %`);
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const MODEL_GB_TXT = num(MODEL_BYTES / 1e9);
+
+document.documentElement.lang = LANG;
+$("#home").href = en ? "/en/" : "/";
+$("#foot-home").href = en ? "/en/" : "/";
+$("#about").href = en ? "/en/about.html" : "/sobre.html";
+const sw = $("#trocar"); sw.href = `?lang=${en ? "pt-BR" : "en"}`; sw.textContent = en ? "Português" : "English"; sw.lang = en ? "pt-BR" : "en"; sw.hreflang = sw.lang;
+document.title = `${T.title} · webai.blog.br`;
+for (const e of document.querySelectorAll("[data-t]")) e.textContent = T[e.dataset.t];
+for (const e of document.querySelectorAll("[data-h]")) e.innerHTML = sub(T[e.dataset.h], { gb: MODEL_GB_TXT });
+$("#limits").innerHTML = T.limits.map((x) => `<li>${x}</li>`).join("");
+$("#credits").innerHTML = [...T.credits, T.credit_base, T.credit_lib].map((x) => `<li>${sub(x, { v: S1S2_VERSION, o: ORT_VERSION })}</li>`).join("");
+
+const setStatus = (s) => { $("#status").textContent = s; };
+let hasGpu = false, loaded = false;
+(async () => {
+  $("#gpu").textContent = T.gpu_check;
+  try { hasGpu = !!(navigator.gpu && await navigator.gpu.requestAdapter()); } catch { hasGpu = false; }
+  $("#gpu").textContent = hasGpu ? T.gpu_yes : T.gpu_no;
+  if (!hasGpu) { $("#load").disabled = true; $("#load").textContent = T.s_nogpu; }
+})();
+
+// ---- Cache dos arquivos grandes do Hub (Cache Storage), com contagem de bytes para a barra.
+// O Hub responde ao redirecionamento com cache-control: no-store, então o navegador não guardaria o arquivo sozinho.
+let counted = 0, fromCache = false, prepared = false;
+async function openCache() { try { return await caches.open(CACHE_NAME); } catch { return null; } }
+function counter() { return new TransformStream({ transform(c, ctl) { counted += c.byteLength; setProgress(); ctl.enqueue(c); } }); }
+function setProgress() {
+  const p = Math.min(99, Math.round(counted / MODEL_BYTES * 100));
+  $("#bar").value = p;
+  setStatus(p >= 99 && counted >= MODEL_BYTES * 0.999 ? T.s_prep : `${fromCache ? T.s_cache : T.s_download}: ${p} %`);
+}
+const ownUrl = (u) => HUB_PREFIXES.some((p) => u.startsWith(p));
+function installFetch() {
+  if (window.__s1s2Fetch) return;
+  const orig = window.fetch.bind(window);
+  window.__s1s2Fetch = true;
+  window.fetch = async (input, init) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
+    const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+    if (!ownUrl(url) || method !== "GET" || headers.has("range")) return orig(input, init);
+    const cache = await openCache();
+    if (cache) {
+      const hit = await cache.match(url, { ignoreVary: true }).catch(() => null);
+      if (hit?.body) { fromCache = true; return new Response(hit.body.pipeThrough(counter()), { status: 200, headers: hit.headers }); }
+    }
+    const r = await orig(input, init);
+    const size = Number(r.headers.get("content-length") ?? 0);
+    if (!r.ok || !r.body || (size > 0 && size < 50e6) || (size === 0 && !/\.data$/.test(url))) return r;
+    fromCache = false;
+    if (cache) {
+      try {
+        await cache.put(url, new Response(r.body.pipeThrough(counter()), { status: 200, headers: r.headers }));
+        const saved = await cache.match(url, { ignoreVary: true });
+        if (saved?.body) return new Response(saved.body, { status: 200, headers: saved.headers });
+      } catch { await cache.delete(url).catch(() => {}); return orig(input, init); }   // sem espaço ou sem Cache Storage: baixa sem guardar
+    }
+    return new Response(r.body.pipeThrough(counter()), { status: 200, headers: r.headers });
+  };
+}
+async function cachedKeys() {
+  const cache = await openCache();
+  const ks = cache ? await cache.keys().catch(() => []) : [];
+  return ks.filter((k) => ownUrl(k.url));
+}
+async function refreshCached() {
+  const n = (await cachedKeys()).length;
+  $("#forget").hidden = n === 0;
+  if (!loaded && hasGpu !== false) $("#load").textContent = sub(n >= 1 ? T.load_cached : T.load, { gb: MODEL_GB_TXT });
+  return n;
+}
+$("#forget").onclick = async () => {
+  const cache = await openCache();
+  for (const k of await cachedKeys()) await cache?.delete(k).catch(() => {});
+  setStatus(T.forgot); await refreshCached();
+};
+$("#load").textContent = sub(T.load, { gb: MODEL_GB_TXT });
+refreshCached();
+
+const statuses = [];
+const onStatus = (m) => { statuses.push(m); if (!counted && !loaded) setStatus(T.s_check); };
+async function startLoad(doLoad) {
+  if (loaded) return;
+  installFetch();
+  $("#load").disabled = true; $("#load").textContent = T.loading; $("#prog").hidden = false; $("#bar").value = 0; counted = 0; setStatus(T.s_check);
+  const t0 = performance.now();
+  try {
+    await doLoad();
+    loaded = true; $("#bar").value = 100;
+    const s = (performance.now() - t0) / 1000;
+    $("#load").textContent = T.s_loaded;
+    setStatus(sub(T.s_ready, { s: num(s) }));
+    window.s1s2demo = { loadS: s, countedBytes: counted, fromCache, statuses };
+    onReady();
+  } catch (e) {
+    console.error(e);
+    setStatus(T.s_err + (e?.message ?? e)); $("#load").disabled = !hasGpu; $("#load").textContent = sub(T.load, { gb: MODEL_GB_TXT });
+    window.s1s2demo = { error: String(e?.message ?? e), statuses };
+  }
+  refreshCached();
+}
+$("#load").addEventListener("click", () => startLoad(loadModel));
+ort.env.logLevel = "error";
+ort.env.wasm.numThreads = 1;
+ort.env.wasm.wasmPaths = ORT_BASE;
+
+let REQ = null, LAW = "GDPR", lib = null, libKey = null, last = null;
+const keyOf = (law) => (law === "LGPD" ? "pt" : "en");
+
+async function loadLib(key) {
+  if (lib && libKey === key) return lib;
+  if (lib) { await lib.dispose?.(); lib = null; libKey = null; }   // um só modelo na memória da placa de vídeo por vez
+  const manifest = await (await fetch(MANIFEST_URL[key])).json();
+  lib = await S1S2.load({ manifest, build: "genai-int4-webgpu", modules: { ort, transformers: tjs }, genai: { verifyEp: true }, onStatus });
+  libKey = key;
+  return lib;
+}
+async function loadModel() {
+  REQ = await (await fetch("./requirements.json")).json();
+  await loadLib(keyOf(LAW));
+}
+function onReady() { $("#run").disabled = false; $("#run").textContent = T.run; }
+$("#run").textContent = T.run_wait;
+const sample = (law) => (law === "LGPD" ? SAMPLE_PT : SAMPLE_EN);
+$("#text").value = sample(LAW);
+document.querySelectorAll(".lei").forEach((b) => b.addEventListener("click", () => {
+  const prev = LAW;
+  LAW = b.dataset.law;
+  document.querySelectorAll(".lei").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  const cur = $("#text").value.trim();
+  if (cur === SAMPLE_EN || cur === SAMPLE_PT) $("#text").value = sample(LAW);
+  if (prev !== LAW) { last = null; $("#resultados").hidden = true; }
+}));
+
+/** Divide a política em trechos: parágrafos, linhas curtas juntadas até ~40 palavras, longas cortadas nas frases (~220 palavras). */
+function splitPassages(text) {
+  const paras = text.replace(/\r/g, "").split(/\n\s*\n|\n(?=\s*(?:[-•*]|\d+[.)]|[A-Z][A-Z \d&,'-]{3,}$))/m)
+    .map((p) => p.replace(/\s*\n\s*/g, " ").trim()).filter(Boolean);
+  const out = [];
+  let buf = "";
+  const words = (s) => (s.match(/\S+/g) || []).length;
+  const push = (p) => {
+    if (words(p) <= 220) { out.push(p); return; }
+    let cur = "";
+    for (const s of p.match(/[^.!?]+[.!?]+["')\]]*\s*|[^.!?]+$/g) || [p]) {
+      if (cur && words(cur) + words(s) > 220) { out.push(cur.trim()); cur = ""; }
+      cur += s;
+    }
+    if (cur.trim()) out.push(cur.trim());
+  };
+  for (const p of paras) {
+    buf = buf ? buf + " " + p : p;
+    if (words(buf) >= 40) { push(buf); buf = ""; }
+  }
+  if (buf) { if (out.length && words(buf) < 15) out[out.length - 1] += " " + buf; else push(buf); }
+  return out;
+}
+const question = (law, r) => law.question.replace("{name}", r.name_of).replace("{definition}", r.definition);
+
+async function run() {
+  const law = REQ.laws[LAW];
+  const text = $("#text").value.trim();
+  if (!text) { $("#runstatus").textContent = T.empty; return; }
+  const reqs = law.requirements.filter((r) => !$("#primaryOnly").checked || r.primary);
+  const passages = splitPassages(text);
+  $("#run").disabled = true;
+  try {
+    if (libKey !== keyOf(LAW)) { $("#runstatus").textContent = T.switching; counted = 0; $("#prog").hidden = false; }
+    const m = await loadLib(keyOf(LAW));
+    const yes = m.manifest.lab.labels.yes, no = m.manifest.lab.labels.no;
+    const best = reqs.map(() => ({ p: -1, i: -1 }));
+    const t0 = performance.now();
+    let skipped = 0;
+    for (const [i, passage] of passages.entries()) {
+      $("#runstatus").textContent = sub(T.reading, { i: i + 1, n: passages.length });
+      if (m.countTokens(passage) > 900) { skipped++; continue; }
+      // As duas ordens das opções, em média: a decisão não depende de onde o "Sim" está na lista.
+      const pYes = [];
+      for (const order of [[yes, no], [no, yes]]) {
+        const s = await m.decide({ input: passage, questions: reqs.map((r) => ({ name: r.code, type: "choice", instructions: question(law, r), choices: order })) }, { keepState: false });
+        s.answers.forEach((a, k) => { pYes[k] = (pYes[k] ?? 0) + a.probabilities.find((x) => x.value === yes).probability / 2; });
+        await s.dispose();
+      }
+      pYes.forEach((p, k) => { if (p > best[k].p) best[k] = { p, i }; });
+    }
+    const rows = reqs.map((r, k) => ({ r, ...best[k], addressed: best[k].p >= 0.5 }));
+    if ($("#quote").checked) {
+      for (const row of rows.filter((x) => x.addressed)) {
+        $("#runstatus").textContent = sub(T.quoting, { n: reqName(row.r) });
+        const prompt = law.quote.replace("{passage}", passages[row.i]).replace("{name}", row.r.name_of).replace("{definition}", row.r.definition);
+        row.quote = (await m.generate(prompt, { maxNewTokens: 96, temperature: 0 })).text.trim();
+      }
+    }
+    last = { rows, passages, secs: (performance.now() - t0) / 1000, skipped };
+    render(last);
+    $("#runstatus").textContent = "";
+    window.s1s2demo.result = rows.map((x) => ({ code: x.r.code, p: x.p, addressed: x.addressed, passage: x.i }));
+    window.s1s2demo.secs = last.secs; window.s1s2demo.done = true;
+  } catch (e) { $("#runstatus").textContent = `Erro: ${e?.message ?? e}`; console.error(e); }
+  finally { $("#run").disabled = false; }
+}
+$("#run").addEventListener("click", run);
+
+function render(st) {
+  const n = st.rows.filter((x) => x.addressed).length;
+  $("#resultados").hidden = false;
+  $("#summary").innerHTML = `<span class="grande">${n} / ${st.rows.length}</span> ${T.of_req}<br><span class="fraco">${LAW} · ${st.passages.length} ${T.passages} · ${num(st.secs)} ${T.s}${st.skipped ? ` · ${st.skipped} ${T.toolong_skip}` : ""}</span>`;
+  $("#results").innerHTML = st.rows.map((x) => {
+    const p = Math.max(0, x.p);
+    return `<article class="item"><p class="msg"><b>${esc(reqName(x.r))}</b>${x.r.primary ? "" : ` <span class="tag">${T.secondary}</span>`}<br><span class="fraco">${esc(x.r.cites.slice(0, 2).join("; "))}</span></p>
+      <div class="dec"><span class="resp ${x.addressed ? "sim" : "nd"}">${x.addressed ? T.addressed : T.notfound}</span><span class="prob">${pct(x.addressed ? p : 1 - p)}</span></div>
+      <div class="barra"><i style="width:${Math.round(100 * (x.addressed ? p : 1 - p))}%"></i></div>
+      ${x.i >= 0 ? `<details class="leitura"><summary>${T.best}: ${T.passage} ${x.i + 1}</summary><blockquote class="trecho">${esc(st.passages[x.i].slice(0, 900))}</blockquote></details>` : ""}
+      ${x.quote ? `<blockquote class="trecho">${esc(x.quote)}</blockquote>` : ""}</article>`;
+  }).join("");
+}
+
+</script>
+</body>
+</html>
