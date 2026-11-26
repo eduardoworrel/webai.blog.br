@@ -631,12 +631,15 @@ def build() -> list[Post]:
             switch=switch_for(lang, homes, homes),
             content=f'<article>\n<h1>{ui["nf_title"]}</h1>\n<p>{ui["nf_text"]} '
                     f'<a href="{"/" + LANG_PREFIX[lang]}">{ui["nf_back"]}</a>.</p>\n</article>'))
-    # Demos: pastas estáticas de demos/<slug>/ (precisam de index.html) vão, sem mudança, para public/demos/<slug>/.
+    # Demos: pastas estáticas de demos/<slug>/ vão, sem mudança, para public/demos/<slug>/. Cada pasta com index.html
+    # (a própria ou uma subpasta, como demos/s1s2/<nome>/) é uma página e entra no sitemap.
     for demo in sorted(p for p in DEMOS.iterdir() if p.is_dir()) if DEMOS.is_dir() else []:
-        if not (demo / "index.html").is_file():
+        pages = sorted(i.parent.relative_to(DEMOS) for i in demo.rglob("index.html"))
+        if not pages:
             raise BuildError(f"demos/{demo.name}: falta index.html")
         shutil.copytree(demo, OUT / "demos" / demo.name, ignore=shutil.ignore_patterns(".DS_Store"))
-        sm.append((f"demos/{demo.name}/", None, {}))
+        for rel in pages:
+            sm.append((f"demos/{rel.as_posix()}/".replace("/./", "/"), None, {}))
     write("sitemap.xml", sitemap(site, sm))
     write("robots.txt", f"User-agent: *\nAllow: /\nSitemap: {site['url']}/sitemap.xml\n")
     return posts
