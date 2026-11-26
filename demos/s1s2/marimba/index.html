@@ -292,7 +292,7 @@ const starts = (() => { let a = []; try { a = JSON.parse(store.get("marimba-aber
 const loopGuard = starts.length > 2;
 const ua = navigator.userAgent;
 const safari = /^((?!chrome|android).)*safari/i.test(ua), ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-const preferLight = loopGuard || safari || ios || !navigator.gpu || Math.min(screen.width, screen.height) < 500;
+const preferLight = false;   // sem modo leve: uma versão só
 let wasLight = false;
 if (loopGuard) notice(T.oom);
 if (store.get("marimba-sessao") === "1" && (navType === "reload" || navType === "back_forward")) notice(T.reloaded);
@@ -324,23 +324,11 @@ function installFetch() {
     const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
     const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
     if (!url.startsWith(HUB_PREFIX) || method !== "GET" || headers.has("range")) return orig(input, init);
-    const cache = await openCache();
-    if (cache) {
-      const hit = await cache.match(url, { ignoreVary: true }).catch(() => null);
-      if (hit?.body) { fromCache = true; return new Response(hit.body.pipeThrough(counter()), { status: 200, headers: hit.headers }); }
-    }
     const r = await orig(input, init);
     const size = Number(r.headers.get("content-length") ?? 0);
     if (!r.ok || !r.body || size < 50e6) return r;
     fromCache = false;
-    if (cache) {
-      try {
-        await cache.put(url, new Response(r.body.pipeThrough(counter()), { status: 200, headers: r.headers }));
-        const saved = await cache.match(url, { ignoreVary: true });
-        if (saved?.body) return new Response(saved.body, { status: 200, headers: saved.headers });
-      } catch { await cache.delete(url).catch(() => {}); return orig(input, init); }   // sem espaço ou sem Cache Storage: baixa sem guardar
-    }
-    return new Response(r.body.pipeThrough(counter()), { status: 200, headers: r.headers });
+    return new Response(r.body.pipeThrough(counter()), { status: 200, headers: r.headers });   // só conta os bytes; sem guardar no Cache Storage (o Safari estoura a memória ao gravar arquivos de centenas de MB)
   };
 }
 async function refreshCached() {
@@ -355,12 +343,13 @@ const lblFull = () => sub(T.load, { gb: MODEL_GB }), lblLight = () => sub(T.ligh
 function layoutButtons() {
   const main = $("#load"), alt = $("#load-alt");
   main.textContent = preferLight ? lblLight() : lblFull(); main.onclick = () => load(preferLight);
-  alt.textContent = preferLight ? lblFullAlt() : lblLight(); alt.onclick = () => load(!preferLight);
+  alt.hidden = true;
 }
 layoutButtons();
 // Com os arquivos grandes já no Cache Storage, a carga não baixa nada (poucos segundos): começa sozinha.
 let fullBefore = false; try { fullBefore = localStorage.getItem("marimba-modo") === "completo"; } catch {}
-refreshCached().then((n) => { if (n >= 2 && fullBefore && !preferLight && !model && !loading) { setStatus(T.auto); window.s1s2demo.autoloaded = true; load(); } });
+try { caches.delete(CACHE_NAME); } catch {}   // apaga o cache de versões anteriores da página
+refreshCached();
 
 // ---- Carregar o modelo
 const STAGE = [[/audio readers/, "st_readers"], [/audio tower/, "st_tower"], [/decoder tokens/, "st_tokens"], [/decoder embeddings/, "st_emb"], [/loading decoder/, "st_dec"], [/decoder not loaded/, "st_nodec"]];
