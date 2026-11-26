@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demos s1s2.js · webai.blog.br</title>
+<meta name="description" content="Modelos pequenos que respondem perguntas com decisões tipadas, rodando no seu navegador, com a biblioteca s1s2.js.">
+<link rel="canonical" href="https://webai.blog.br/demos/s1s2/">
+<meta property="og:title" content="Demos s1s2.js">
+<meta property="og:description" content="Modelos pequenos com decisões tipadas, no seu navegador.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://webai.blog.br/demos/s1s2/">
+<meta name="color-scheme" content="light">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/style.css">
+<style>
+  .demo { max-width: 56rem; margin: 0 auto; padding-top: 2.5rem; }
+  .demo h1 { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.1; letter-spacing: -.02em; margin: 0 0 .8rem; }
+  .demo .lede { font-size: 1.2rem; line-height: 1.5; color: var(--fg2); margin: 0 0 1.2rem; max-width: 42rem; }
+  .aviso { background: var(--accent-soft); border-left: 4px solid var(--accent); border-radius: 0 12px 12px 0; padding: .8rem 1rem; font-size: .96rem; margin: 0 0 1.6rem; }
+  .aviso p { margin: 0; max-width: none; }
+  .cartoes { list-style: none; padding: 0; margin: 0 0 1.8rem; display: grid; gap: .9rem; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); }
+  .cartoes li { max-width: none; margin: 0; display: flex; }
+  .cartao { display: flex; flex-direction: column; gap: .35rem; width: 100%; border: 1px solid var(--line); border-radius: 14px; padding: 1.1rem 1.2rem; background: #fff; color: var(--fg); text-decoration: none; min-width: 0; }
+  .cartao:hover { border-color: var(--accent); }
+  .cartao b { font-size: 1.25rem; line-height: 1.2; color: var(--accent-ink); }
+  .cartao span { font-size: .98rem; line-height: 1.45; color: var(--fg2); }
+  .cartao .ir { margin-top: auto; padding-top: .4rem; font-weight: 600; color: var(--accent); font-size: .95rem; }
+  .etiqueta { font: 700 .74rem/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent-ink); background: var(--accent-bg); padding: .25rem .55rem; border-radius: 999px; margin-left: .4rem; vertical-align: .15em; white-space: nowrap; }
+  .lib { font-size: .98rem; color: var(--fg2); }
+  .lib a { margin-right: 1rem; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .cartao:focus-visible { outline-offset: 3px; }
+</style>
+</head>
+<body>
+<header class="topo">
+<a class="marca" href="/" id="home"><img src="/logo.svg" alt="" width="28" height="28"><span>webai.blog.br</span></a>
+<nav aria-label="webai.blog.br">
+<a href="/" data-t="nav_posts"></a>
+<a href="https://webai.blog.br/state-of-the-art/">State of the Art</a>
+<a href="https://webai.blog.br/observatorio/">Observatório</a>
+<a href="/sobre.html" id="about" data-t="nav_about"></a>
+<a class="idioma" id="trocar" href="?lang=en" lang="en" hreflang="en">English</a>
+</nav>
+</header>
+<main>
+<div class="demo">
+<h1 data-t="title"></h1>
+<p class="lede" data-t="lede"></p>
+<div class="aviso"><p data-t="req"></p></div>
+<ul class="cartoes" id="lista"></ul>
+<p class="lib"><span data-t="lib"></span> <a href="https://github.com/eduardoworrel/s1s2.js">GitHub: eduardoworrel/s1s2.js</a> <a href="https://www.npmjs.com/package/@s1s2/web">npm: @s1s2/web</a></p>
+</div>
+</main>
+<footer class="rodape">
+<p><a href="/" data-t="nav_posts" id="foot-home"></a> · <a href="https://github.com/eduardoworrel/webai.blog.br/blob/main/CONTRIBUTING.md" data-t="foot_write"></a> · <a href="https://github.com/eduardoworrel/state-of-the-art-webai" data-t="foot_map"></a></p>
+</footer>
+<script>
+const TX = {
+  "pt-BR": {
+    nav_posts: "Posts", nav_about: "Sobre", foot_write: "Escreva um post", foot_map: "Contribua com o mapa",
+    title: "Demos s1s2.js",
+    lede: "Modelos pequenos que respondem perguntas com decisões tipadas, rodando no seu navegador, com a biblioteca s1s2.js.",
+    req: "Precisa de um navegador com WebGPU (Chrome ou Edge recentes, no computador). Cada demo baixa o seu modelo uma vez. O áudio e o texto não saem do navegador.",
+    lib: "Biblioteca:", open: "Abrir a demo", exp: "experimental",
+    demos: [
+      ["marimba", "Marimba", "Áudio: voz, fim de turno, falantes, idioma, palavra dita e transcrição."],
+      ["roteador", "Roteador", "Uma passada escolhe entre 7 tópicos e mostra a margem."],
+      ["contrato", "Contrato", "Cole um NDA em inglês: sim, não ou não menciona, para cada afirmação."],
+      ["sentinela", "Sentinela", "Lê cada mensagem e só acorda o segundo sistema para resumir as urgentes.", true],
+      ["policy-checker", "Policy Checker", "Confere se uma política de privacidade cobre os requisitos da GDPR, LGPD ou CCPA."]
+    ]
+  },
+  en: {
+    nav_posts: "Posts", nav_about: "About", foot_write: "Write a post", foot_map: "Contribute to the map",
+    title: "s1s2.js demos",
+    lede: "Small models that answer questions with typed decisions, running in your browser, with the s1s2.js library.",
+    req: "Needs a browser with WebGPU (recent Chrome or Edge, on a computer). Each demo downloads its model once. Audio and text never leave the browser.",
+    lib: "Library:", open: "Open the demo", exp: "experimental",
+    demos: [
+      ["marimba", "Marimba", "Audio: voice, end of turn, speakers, language, spoken word and transcript."],
+      ["roteador", "Router", "One pass picks among 7 topics and shows the margin."],
+      ["contrato", "Contract", "Paste an NDA: yes, no or not mentioned, for each claim."],
+      ["sentinela", "Sentinel", "Reads each message and only wakes the second system to summarise the urgent ones.", true],
+      ["policy-checker", "Policy Checker", "Checks whether a privacy policy covers the requirements of GDPR, LGPD or CCPA."]
+    ]
+  }
+};
+const qs = new URLSearchParams(location.search);
+const LANG = (qs.get("lang") ?? navigator.language ?? "en").toLowerCase().startsWith("pt") ? "pt-BR" : "en";
+const T = TX[LANG], en = LANG === "en";
+const $ = (s) => document.querySelector(s);
+document.documentElement.lang = LANG;
+document.title = `${T.title} · webai.blog.br`;
+$("#home").href = en ? "/en/" : "/"; $("#foot-home").href = en ? "/en/" : "/"; $("#about").href = en ? "/en/about.html" : "/sobre.html";
+const sw = $("#trocar"); sw.href = `?lang=${en ? "pt-BR" : "en"}`; sw.textContent = en ? "Português" : "English"; sw.lang = en ? "pt-BR" : "en"; sw.hreflang = sw.lang;
+for (const e of document.querySelectorAll("[data-t]")) e.textContent = T[e.dataset.t];
+const keep = qs.has("lang") ? `?lang=${LANG}` : "";
+for (const [slug, name, line, exp] of T.demos) {
+  const li = document.createElement("li"), a = document.createElement("a");
+  a.className = "cartao"; a.href = `./${slug}/${keep}`;
+  const b = document.createElement("b"); b.textContent = name;
+  if (exp) { const t = document.createElement("small"); t.className = "etiqueta"; t.textContent = T.exp; b.append(" ", t); }
+  const s = document.createElement("span"); s.textContent = line;
+  const go = document.createElement("span"); go.className = "ir"; go.textContent = T.open + " →";
+  a.append(b, s, go); li.append(a); $("#lista").append(li);
+}
+</script>
+</body>
+</html>

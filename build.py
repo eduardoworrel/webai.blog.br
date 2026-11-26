@@ -636,7 +636,11 @@ def build() -> list[Post]:
         if not (demo / "index.html").is_file():
             raise BuildError(f"demos/{demo.name}: falta index.html")
         shutil.copytree(demo, OUT / "demos" / demo.name, ignore=shutil.ignore_patterns(".DS_Store"))
-        sm.append((f"demos/{demo.name}/", None, {}))
+        for idx in sorted(demo.rglob("index.html")):   # inclui subpastas (demos/s1s2/<nome>/); redirecionamentos noindex ficam fora
+            if '<meta name="robots" content="noindex">' in idx.read_text(encoding="utf-8"):
+                continue
+            rel = idx.parent.relative_to(DEMOS).as_posix()
+            sm.append((f"demos/{rel}/", None, {}))
     write("sitemap.xml", sitemap(site, sm))
     write("robots.txt", f"User-agent: *\nAllow: /\nSitemap: {site['url']}/sitemap.xml\n")
     return posts
