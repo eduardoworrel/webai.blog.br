@@ -15,7 +15,7 @@
 <link rel="preload" href="/fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/style.css">
 <!-- O tokenizador (transformers.js) importa o ONNX Runtime pelo nome; os dois nomes apontam para a mesma cópia fixada, no jsDelivr. -->
-<script type="importmap">{"imports":{"onnxruntime-web/webgpu":"https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.1/dist/ort.webgpu.min.mjs","onnxruntime-common":"https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.1/dist/ort.webgpu.min.mjs"}}</script>
+<script type="importmap">{"imports":{"onnxruntime-web/webgpu":"https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.1/dist/ort.all.bundle.min.mjs","onnxruntime-common":"https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.1/dist/ort.all.bundle.min.mjs"}}</script>
 <style>
   .demo { max-width: 56rem; margin: 0 auto; padding-top: 2.5rem; }
   .demo h1 { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.1; letter-spacing: -.02em; margin: 0 0 .8rem; }
@@ -61,10 +61,10 @@
   .vence { font-size: 2.2rem; line-height: 1.1; font-weight: 700; margin: 0 0 .2rem; overflow-wrap: anywhere; }
   .vence small { font-size: 1rem; color: var(--fg2); font-weight: 600; margin-left: .4rem; }
   .prob { list-style: none; padding: 0; margin: .8rem 0; display: grid; gap: .45rem; }
-  .prob li { display: grid; grid-template-columns: 1.4rem minmax(3rem, 9rem) 1fr 4.2rem; gap: .6rem; align-items: center; max-width: none; margin: 0; font-variant-numeric: tabular-nums; }
+  .prob li { display: grid; grid-template-columns: 1.4rem minmax(3rem, 9rem) 1fr 5rem; gap: .6rem; align-items: center; max-width: none; margin: 0; font-variant-numeric: tabular-nums; }
   .prob li.venc { font-weight: 700; }
   .prob .nome { overflow-wrap: anywhere; }
-  .prob b { text-align: right; font-weight: inherit; }
+  .prob b { text-align: right; white-space: nowrap; font-weight: inherit; }
   .barra { height: .6rem; background: var(--line); border-radius: 999px; overflow: hidden; display: block; }
   .barra i { display: block; height: 100%; width: 0; background: var(--line2); }
   .prob li.venc .barra i { background: var(--accent); }
@@ -80,7 +80,7 @@
   [hidden] { display: none !important; }
   @media (max-width: 520px) {
     .painel { padding: 1rem; }
-    .prob li { grid-template-columns: 1.4rem minmax(2.5rem, 6rem) 1fr 3.8rem; gap: .4rem; }
+    .prob li { grid-template-columns: 1.4rem minmax(2.5rem, 6rem) 1fr 4.6rem; gap: .4rem; }
     button, .botao { padding: .55rem .9rem; }
   }
 </style>
@@ -340,7 +340,7 @@ async function load() {
   $("#load").disabled = true; $("#force").hidden = true; $("#unsupported").hidden = true; $("#load").textContent = T.loading; $("#prog").hidden = false; $("#bar").value = 0; counted = 0; phase = "download";
   try {
     installFetch();
-    ort = await import(`${ORT_BASE}ort.webgpu.min.mjs`);
+    ort = await import(`${ORT_BASE}ort.all.bundle.min.mjs`);
     ort.env.wasm.wasmPaths = ORT_BASE;
     ort.env.wasm.numThreads = 1;                       // sem cabeçalhos especiais (COOP/COEP): uma thread basta
     const transformers = await import(TJS_URL);
@@ -351,7 +351,7 @@ async function load() {
     $("#bar").value = 100;
     const secs = (performance.now() - t0) / 1000;
     setStatus(sub(T.s_ready, { dev: model.device, s: num(secs) }));
-    $("#load").hidden = true; $("#prog").hidden = true; $("#pergunta").hidden = false; $("#req").hidden = true;
+    $("#load").hidden = true; $("#prog").hidden = true; $("#pergunta").hidden = false;
     store.set("vj-sessao", "1");
     try { Promise.resolve(ort.env.webgpu?.device).then((d) => d?.lost?.then((info) => { events.push({ t: Date.now(), e: "device-lost", reason: info?.reason }); notice(T.gpu_lost); })).catch(() => {}); } catch {}
     window.s1s2demo.loadMs = performance.now() - t0; window.s1s2demo.loadedBytes = counted;
