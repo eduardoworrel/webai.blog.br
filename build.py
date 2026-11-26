@@ -29,6 +29,7 @@ ROOT = Path(__file__).resolve().parent
 POSTS = ROOT / "posts"
 PAGES = ROOT / "pages"
 THEME = ROOT / "theme"
+DEMOS = ROOT / "demos"
 OUT = ROOT / "public"
 
 FILENAME_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$")
@@ -630,6 +631,12 @@ def build() -> list[Post]:
             switch=switch_for(lang, homes, homes),
             content=f'<article>\n<h1>{ui["nf_title"]}</h1>\n<p>{ui["nf_text"]} '
                     f'<a href="{"/" + LANG_PREFIX[lang]}">{ui["nf_back"]}</a>.</p>\n</article>'))
+    # Demos: pastas estáticas de demos/<slug>/ (precisam de index.html) vão, sem mudança, para public/demos/<slug>/.
+    for demo in sorted(p for p in DEMOS.iterdir() if p.is_dir()) if DEMOS.is_dir() else []:
+        if not (demo / "index.html").is_file():
+            raise BuildError(f"demos/{demo.name}: falta index.html")
+        shutil.copytree(demo, OUT / "demos" / demo.name, ignore=shutil.ignore_patterns(".DS_Store"))
+        sm.append((f"demos/{demo.name}/", None, {}))
     write("sitemap.xml", sitemap(site, sm))
     write("robots.txt", f"User-agent: *\nAllow: /\nSitemap: {site['url']}/sitemap.xml\n")
     return posts

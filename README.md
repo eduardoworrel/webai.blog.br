@@ -9,6 +9,7 @@ Sem JavaScript, um único CSS, tema claro (tokens do tema da comunidade, fonte A
 posts/AAAA-MM-DD-slug.md   um post (front matter + Markdown)
 posts/slug/                imagens do post
 pages/*.md                 página "Sobre" de cada idioma
+demos/slug/                demo estática (index.html + arquivos), publicada sem mudança em /demos/slug/
 i18n/<idioma>.toml         textos da interface de cada idioma
 theme/base.html            molde HTML de todas as páginas
 theme/style.css            o único CSS
