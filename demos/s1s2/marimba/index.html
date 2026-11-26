@@ -184,6 +184,7 @@ const MANIFEST_URL = `https://huggingface.co/${HUB_REPO}/resolve/${HUB_COMMIT}/m
 const HUB_PREFIX = `https://huggingface.co/${HUB_REPO}/resolve/`;
 const CACHE_NAME = "marimba-s1s2-v1";
 const WIN = 8 * 16000;
+const REC_S = 10;   // grava 10 s: o início do microfone perde alguns décimos e o modelo lê os últimos 8 s
 const LIGHT_GB = "0,8";
 const ENC_BYTES = 745697054;
 const EXPECTED_FULL = 745697054 + 352149504;
@@ -204,7 +205,7 @@ const TX = {
     reloaded: "A página foi recarregada pelo navegador; o modelo volta do cache.", gpu_lost: "O navegador perdeu o acesso à placa de vídeo (WebGPU). Recarregue a página; o modelo volta do cache.",
     s_download: "Baixando", s_cache: "Lendo do navegador", s_prep: "Preparando o modelo (pode levar alguns segundos)…", s_ready: "Modelo pronto ({dev}, {s} s).", s_err: "Não foi possível carregar o modelo: ",
     st_readers: "Carregando as respostas rápidas…", st_tower: "Carregando o codificador de áudio…", st_tokens: "Carregando o vocabulário…", st_emb: "Carregando os vetores do decodificador…", st_dec: "Carregando o decodificador…", st_nodec: "O decodificador não carregou: idioma, palavra e transcrição ficam indisponíveis.",
-    h_audio: "Escolha um áudio", ex_n: "Frase {n}", ex_two: "Frases 1 + 2", ex_noise: "Ruído", rec: "Gravar 8 s", rec_now: "Gravando… {s} s", file: "Enviar arquivo",
+    h_audio: "Escolha um áudio", ex_n: "Frase {n}", ex_two: "Frases 1 + 2", ex_noise: "Ruído", rec: "Gravar 10 s", rec_now: "Gravando… {s} s", file: "Enviar arquivo",
     mic_no: "Não consegui usar o microfone: ", dec_no: "Não consegui ler este arquivo de áudio.", need_model: "Carregue o modelo primeiro; o áudio já está pronto.",
     what_x: "{label}: {s} s de áudio (o modelo lê os últimos {w} s).", mic_label: "Gravação", wave_alt: "Forma de onda",
     h_answers: "Respostas", q_voice: "Há voz?", q_turn: "A pessoa terminou de falar?", q_same: "Mesma pessoa nas duas metades?", q_change: "Houve troca de falante?", q_count: "Quantos falantes?", q_lang: "Idioma", q_word: "Foi dita a palavra…?", word_label: "Palavra a procurar", ask: "Verificar", ph: "uma palavra",
@@ -234,7 +235,7 @@ const TX = {
     reloaded: "The browser reloaded the page; the model comes back from the cache.", gpu_lost: "The browser lost access to the graphics card (WebGPU). Reload the page; the model comes back from the cache.",
     s_download: "Downloading", s_cache: "Reading from the browser", s_prep: "Preparing the model (may take a few seconds)…", s_ready: "Model ready ({dev}, {s} s).", s_err: "The model could not be loaded: ",
     st_readers: "Loading the fast answers…", st_tower: "Loading the audio encoder…", st_tokens: "Loading the vocabulary…", st_emb: "Loading the decoder vectors…", st_dec: "Loading the decoder…", st_nodec: "The decoder did not load: language, word and transcript are unavailable.",
-    h_audio: "Pick an audio", ex_n: "Sentence {n}", ex_two: "Sentences 1 + 2", ex_noise: "Noise", rec: "Record 8 s", rec_now: "Recording… {s} s", file: "Upload a file",
+    h_audio: "Pick an audio", ex_n: "Sentence {n}", ex_two: "Sentences 1 + 2", ex_noise: "Noise", rec: "Record 10 s", rec_now: "Recording… {s} s", file: "Upload a file",
     mic_no: "Could not use the microphone: ", dec_no: "Could not read this audio file.", need_model: "Load the model first; the audio is ready.",
     what_x: "{label}: {s} s of audio (the model reads the last {w} s).", mic_label: "Recording", wave_alt: "Waveform",
     h_answers: "Answers", q_voice: "Is there a voice?", q_turn: "Has the person finished speaking?", q_same: "Same person in both halves?", q_change: "Did the speaker change?", q_count: "How many speakers?", q_lang: "Language", q_word: "Was the word … said?", word_label: "Word to look for", ask: "Check", ph: "a word",
@@ -448,9 +449,9 @@ $("#rec").onclick = async () => {
     rec.ondataavailable = (e) => chunks.push(e.data);
     const done = new Promise((r) => { rec.onstop = r; });
     $("#rec").disabled = true; rec.start();
-    let left = 8; $("#rec").textContent = sub(T.rec_now, { s: left });
+    let left = REC_S; $("#rec").textContent = sub(T.rec_now, { s: left });
     const tick = setInterval(() => { left -= 1; $("#rec").textContent = sub(T.rec_now, { s: Math.max(0, left) }); }, 1000);
-    setTimeout(() => rec.state === "recording" && rec.stop(), 8000);
+    setTimeout(() => rec.state === "recording" && rec.stop(), REC_S * 1000);
     await done; clearInterval(tick);
     stream.getTracks().forEach((t) => t.stop());
     await setSamples(await toMono16k(await new Blob(chunks).arrayBuffer()), T.mic_label);
