@@ -97,6 +97,7 @@
 <section class="painel" aria-label="Modelo">
   <p class="linha" style="margin:0">
     <button id="load" class="principal" type="button"></button>
+    <button id="load-alt" type="button"></button>
     <button id="forget" type="button" hidden data-t="forget"></button>
   </p>
   <div id="prog" hidden style="margin-top:.8rem">
@@ -183,7 +184,10 @@ const MANIFEST_URL = `https://huggingface.co/${HUB_REPO}/resolve/${HUB_COMMIT}/m
 const HUB_PREFIX = `https://huggingface.co/${HUB_REPO}/resolve/`;
 const CACHE_NAME = "marimba-s1s2-v1";
 const WIN = 8 * 16000;
-const EXPECTED_BYTES = 745697054 + 352149504;   // encoder + decoder (build WebGPU); a build de CPU tem 406 MB
+const LIGHT_GB = "0,8";
+const ENC_BYTES = 745697054;
+const EXPECTED_FULL = 745697054 + 352149504;
+let EXPECTED_BYTES = EXPECTED_FULL;   // encoder + decoder (build WebGPU); a build de CPU tem 406 MB
 
 // ---- Textos (pt-BR e en; es não foi feito)
 const fmt = (n, d = 1) => n.toFixed(d);
@@ -194,6 +198,8 @@ const TX = {
     lede: "Um modelo de fala pequeno responde perguntas sobre o seu áudio, aqui na página.",
     gpu_no: "Sem WebGPU neste navegador: o modelo vai rodar em WASM, bem mais devagar.",
     load: "Carregar o modelo (≈{gb} GB, baixa uma vez)", load_cached: "Carregar o modelo (já guardado neste navegador)", loading: "Carregando…", forget: "Apagar o modelo guardado",
+    light: "Modo leve (≈{gb} GB; sem idioma, palavra e transcrição)", full_alt: "Modo completo (≈{gb} GB)", light_on: "Modo leve: idioma, palavra e transcrição estão desligados.",
+    oom: "O navegador fechou a página por falta de memória. Carregue sem a transcrição e as perguntas de idioma e palavra (menor).",
     forgot: "Modelo guardado apagado deste navegador.", auto: "Modelo guardado neste navegador: carregando sem baixar de novo…",
     reloaded: "A página foi recarregada pelo navegador; o modelo volta do cache.", gpu_lost: "O navegador perdeu o acesso à placa de vídeo (WebGPU). Recarregue a página; o modelo volta do cache.",
     s_download: "Baixando", s_cache: "Lendo do navegador", s_prep: "Preparando o modelo (pode levar alguns segundos)…", s_ready: "Modelo pronto ({dev}, {s} s).", s_err: "Não foi possível carregar o modelo: ",
@@ -222,6 +228,8 @@ const TX = {
     lede: "A small speech model answers questions about your audio, right on this page.",
     gpu_no: "No WebGPU in this browser: the model will run on WASM, much slower.",
     load: "Load the model (≈{gb} GB, downloaded once)", load_cached: "Load the model (already stored in this browser)", loading: "Loading…", forget: "Delete the stored model",
+    light: "Light mode (≈{gb} GB; no language, word or transcript)", full_alt: "Full mode (≈{gb} GB)", light_on: "Light mode: language, word and transcript are turned off.",
+    oom: "The browser closed the page for lack of memory. Load without the transcript and the language and word questions (smaller).",
     forgot: "The stored model was deleted from this browser.", auto: "Model stored in this browser: loading it without downloading again…",
     reloaded: "The browser reloaded the page; the model comes back from the cache.", gpu_lost: "The browser lost access to the graphics card (WebGPU). Reload the page; the model comes back from the cache.",
     s_download: "Downloading", s_cache: "Reading from the browser", s_prep: "Preparing the model (may take a few seconds)…", s_ready: "Model ready ({dev}, {s} s).", s_err: "The model could not be loaded: ",
@@ -247,7 +255,7 @@ const TX = {
 };
 const qs = new URLSearchParams(location.search);
 const LANG = (qs.get("lang") ?? navigator.language ?? "en").toLowerCase().startsWith("pt") ? "pt-BR" : "en";
-const T = TX[LANG]; MODEL_GB = (1.1).toLocaleString(LANG, { minimumFractionDigits: 1 });
+const T = TX[LANG]; const LIGHT = LANG === "en" ? "0.8" : LIGHT_GB; MODEL_GB = (1.1).toLocaleString(LANG, { minimumFractionDigits: 1 });
 const sub = (s, o) => s.replace(/\{(\w+)\}/g, (_, k) => o[k] ?? "");
 const num = (v, d = 1) => v.toLocaleString(LANG, { minimumFractionDigits: d, maximumFractionDigits: d });
 const pct = (v) => `${num(v * 100)} %`;
@@ -279,6 +287,14 @@ const notice = (msg) => { const n = $("#aviso-nav"); n.textContent = msg; n.hidd
 // Recarga feita pelo navegador (queda por memória, descarte de aba): avisa e, com o modelo guardado, ele volta sozinho.
 const navType = performance.getEntriesByType("navigation")[0]?.type ?? "navigate";
 events.push({ t: Date.now(), e: "nav", type: navType });
+// Trava anti-loop: aberturas desta aba em menos de 60 s; mais de uma recarga seguida = o navegador está derrubando a página (memória).
+const starts = (() => { let a = []; try { a = JSON.parse(store.get("marimba-aberturas") || "[]"); } catch {} const n = Date.now(); a = a.filter((t) => n - t < 60000); a.push(n); store.set("marimba-aberturas", JSON.stringify(a)); return a; })();
+const loopGuard = starts.length > 2;
+const ua = navigator.userAgent;
+const safari = /^((?!chrome|android).)*safari/i.test(ua), ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const preferLight = loopGuard || safari || ios || !navigator.gpu || Math.min(screen.width, screen.height) < 500;
+let wasLight = false;
+if (loopGuard) notice(T.oom);
 if (store.get("marimba-sessao") === "1" && (navType === "reload" || navType === "back_forward")) notice(T.reloaded);
 addEventListener("pagehide", (ev) => { events.push({ t: Date.now(), e: "pagehide", persisted: ev.persisted }); });
 addEventListener("pageshow", (ev) => { events.push({ t: Date.now(), e: "pageshow", persisted: ev.persisted }); if (ev.persisted && store.get("marimba-sessao") === "1") notice(T.reloaded); });
@@ -331,13 +347,20 @@ async function refreshCached() {
   const cache = await openCache();
   const n = cache ? (await cache.keys().catch(() => [])).length : 0;
   $("#forget").hidden = n === 0;
-  if (!model && !loading) $("#load").textContent = sub(n >= 2 ? T.load_cached : T.load, { gb: MODEL_GB });
+  if (!model && !loading && !preferLight) $("#load").textContent = n >= 2 ? sub(T.load_cached, {}) : lblFull();
   return n;
 }
 $("#forget").onclick = async () => { try { await caches.delete(CACHE_NAME); } catch {} setStatus(T.forgot); await refreshCached(); };
-$("#load").textContent = sub(T.load, { gb: MODEL_GB });
+const lblFull = () => sub(T.load, { gb: MODEL_GB }), lblLight = () => sub(T.light, { gb: LIGHT }), lblFullAlt = () => sub(T.full_alt, { gb: MODEL_GB });
+function layoutButtons() {
+  const main = $("#load"), alt = $("#load-alt");
+  main.textContent = preferLight ? lblLight() : lblFull(); main.onclick = () => load(preferLight);
+  alt.textContent = preferLight ? lblFullAlt() : lblLight(); alt.onclick = () => load(!preferLight);
+}
+layoutButtons();
 // Com os arquivos grandes já no Cache Storage, a carga não baixa nada (poucos segundos): começa sozinha.
-refreshCached().then((n) => { if (n >= 2 && !model && !loading) { setStatus(T.auto); window.s1s2demo.autoloaded = true; load(); } });
+let fullBefore = false; try { fullBefore = localStorage.getItem("marimba-modo") === "completo"; } catch {}
+refreshCached().then((n) => { if (n >= 2 && fullBefore && !preferLight && !model && !loading) { setStatus(T.auto); window.s1s2demo.autoloaded = true; load(); } });
 
 // ---- Carregar o modelo
 const STAGE = [[/audio readers/, "st_readers"], [/audio tower/, "st_tower"], [/decoder tokens/, "st_tokens"], [/decoder embeddings/, "st_emb"], [/loading decoder/, "st_dec"], [/decoder not loaded/, "st_nodec"]];
@@ -345,11 +368,12 @@ function onStatus(m) {
   const hit = STAGE.find(([re]) => re.test(m));
   if (hit) setStatus(T[hit[1]]);          // durante o download, a porcentagem da barra toma o lugar
 }
-async function load() {
+async function load(light = false) {
   if (loading || model) return;
-  loading = true;
+  loading = true; wasLight = light; EXPECTED_BYTES = light ? ENC_BYTES : EXPECTED_FULL;
+  window.s1s2demo.light = light;
   const t0 = performance.now();
-  $("#load").disabled = true; $("#load").textContent = T.loading; $("#prog").hidden = false; $("#bar").value = 0; counted = 0;
+  $("#load").disabled = true; $("#load-alt").hidden = true; $("#load").textContent = T.loading; $("#prog").hidden = false; $("#bar").value = 0; counted = 0;
   try {
     installFetch();
     ort = await import(`${ORT_BASE}ort.webgpu.min.mjs`);
@@ -357,26 +381,28 @@ async function load() {
     ort.env.wasm.numThreads = 1;                       // sem cabeçalhos especiais (COOP/COEP): uma thread basta
     const { loadMedia } = await import(MEDIA_URL);
     const poll = setInterval(() => { if (counted >= EXPECTED_BYTES * .995) setStatus(T.s_prep); }, 500);
-    try { model = await loadMedia({ manifest: MANIFEST_URL, modules: { ort }, decoder: "auto", onStatus }); }
+    try { model = await loadMedia({ manifest: MANIFEST_URL, modules: { ort }, decoder: light ? false : "auto", onStatus }); }
     finally { clearInterval(poll); }
     $("#bar").value = 100;
     const secs = (performance.now() - t0) / 1000;
     setStatus(sub(T.s_ready, { dev: model.device, s: num(secs) }));
-    $("#load").hidden = true; $("#prog").hidden = true; $("#audio").hidden = false;
+    $("#load").hidden = true; $("#load-alt").hidden = true; $("#prog").hidden = true; $("#audio").hidden = false;
+    if (!light) { try { localStorage.setItem("marimba-modo", "completo"); } catch {} }
     store.set("marimba-sessao", "1");
     try { Promise.resolve(ort.env.webgpu?.device).then((d) => d?.lost?.then((info) => { events.push({ t: Date.now(), e: "device-lost", reason: info?.reason }); notice(T.gpu_lost); })).catch(() => {}); } catch {}
     const dec = !!model.decoder?.loaded;
     $('[data-task="language"]').hidden = !(dec && model.tasks.includes("language"));
     $('[data-task="term"]').hidden = !(dec && model.tasks.includes("term"));
     $("#tr-card").hidden = !(dec && hasTranscribe());
-    if (model.decoder && !dec) setStatus(T.st_nodec);
+    if (light) setStatus(sub(T.s_ready, { dev: model.device, s: num(secs) }) + " " + T.light_on);
+    else if (model.decoder && !dec) setStatus(T.st_nodec);
     window.s1s2demo.loadMs = performance.now() - t0; window.s1s2demo.loadedBytes = counted;
     refreshCached();
     if (samples) run(); else restoreLast();
   } catch (e) {
     console.error(e);
     setStatus(T.s_err + String(e?.message ?? e));
-    $("#load").disabled = false; $("#load").textContent = sub(T.load, { gb: MODEL_GB }); $("#prog").hidden = true;
+    $("#load").disabled = false; $("#load-alt").hidden = false; layoutButtons(); $("#prog").hidden = true;
   } finally { loading = false; }
 }
 // Depois de uma recarga: refaz o último exemplo escolhido (guardado só nesta aba).
@@ -560,10 +586,9 @@ async function transcribe() {
   finally { if (mine === clip) $("#transcribe").disabled = false; }
 }
 $("#transcribe").onclick = transcribe;
-$("#load").onclick = load;
 
 // Ganchos para teste automático (não aparecem na página)
-window.s1s2demo = { events, load, fromUrls, setSamples, run, ask, transcribe, version: S1S2_VERSION, get model() { return model; } };
+window.s1s2demo = { events, loopGuard, preferLight,  load, fromUrls, setSamples, run, ask, transcribe, version: S1S2_VERSION, get model() { return model; } };
 window.dispatchEvent(new Event("s1s2demo-ready"));
 </script>
 </body>
