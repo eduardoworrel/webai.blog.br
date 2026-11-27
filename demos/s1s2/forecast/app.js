@@ -123,7 +123,7 @@ for (const [id, entries] of [["what-list", t.what], ["limits", t.limits]]) {
 }
 const credits = [
   ["Qwen3.5-0.8B", "https://huggingface.co/Qwen/Qwen3.5-0.8B", "Apache-2.0"],
-  ["Qwen3.5-0.8B Forecast Refusal", hub, "Apache-2.0"],
+  ["eduardoworrel/Qwen3.5-0.8B-Forecast-Refusal-ONNX-S1S2", hub, "Apache-2.0"],
   ["s1s2.js", "https://github.com/eduardoworrel/s1s2.js", "MIT"],
   ["ONNX Runtime Web 1.31.1", "https://onnxruntime.ai/", "MIT"],
   ["Transformers.js 4.3.1", "https://github.com/huggingface/transformers.js", "Apache-2.0"],
