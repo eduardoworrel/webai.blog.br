@@ -23,7 +23,6 @@
   .demo h1 { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.1; letter-spacing: -.02em; margin: 0 0 .8rem; }
   .demo h2 { font-size: 1.3rem; line-height: 1.25; margin: 0 0 .7rem; }
   .demo p { margin: 0 0 .8rem; }
-  .demo .voltar { font-size: .95rem; margin-bottom: .7rem; }
   .demo .lede { font-size: 1.2rem; line-height: 1.5; color: var(--fg2); max-width: 42rem; margin: 0 0 1.2rem; }
   .painel, .sobre { border: 1px solid var(--line); border-radius: 16px; background: #fff; padding: 1.2rem 1.3rem; margin: 0 0 1.4rem; }
   .painel > :last-child { margin-bottom: 0; }
@@ -47,7 +46,11 @@
   .vence { font-size: 2.2rem; line-height: 1.1; font-weight: 700; font-variant-numeric: tabular-nums; }
   .sobre { padding: .8rem 1.3rem; }
   .sobre > summary { color: var(--accent); cursor: pointer; font-weight: 600; min-height: 2rem; }
-  .sobre p { margin: .65rem 0; }
+  .sobre h2 { font-size: 1.05rem; margin: 1rem 0 .4rem; }
+  .sobre ul { padding-left: 1.2rem; margin: 0 0 .6rem; font-size: .95rem; color: var(--fg2); }
+  .sobre li { max-width: none; }
+  .sobre li + li { margin-top: .3rem; }
+  .limiar input { margin-right: .35rem; }
   .demo p:empty, [hidden] { display: none !important; }
   @media (max-width: 520px) { .painel { padding: 1rem; } }
 </style>
@@ -65,7 +68,6 @@
 </header>
 <main>
 <div class="demo">
-  <p class="voltar"><a id="back" href="../" data-t="back">Todas as demos</a></p>
   <h1 data-t="title">Previsão de recusa</h1>
   <p class="lede" data-t="lede">Estime a probabilidade de o modelo recusar um pedido antes de gerar a resposta.</p>
 
@@ -73,7 +75,7 @@
     <h2 id="model-title" data-t="model">Modelo</h2>
     <p data-t="requirements">Experimental. Use Chrome no computador com WebGPU. A primeira carga baixa cerca de 555 MB.</p>
     <p class="linha"><button id="load" type="button" data-t="load">Carregar modelo</button></p>
-    <progress id="loading" aria-labelledby="status" hidden></progress>
+    <progress id="loading" max="100" value="0" aria-labelledby="status" hidden></progress>
     <p id="status" class="fraco" role="status" aria-live="polite"></p>
   </section>
 
@@ -97,20 +99,19 @@
     <details class="limiar">
       <summary data-t="threshold">Ajustar limiar</summary>
       <label class="campo-rot" for="thr" data-t="threshold_label">Limiar de recusa (0 a 100%)</label>
-      <input id="thr" type="number" min="0" max="100" step="any" value="10" required>
+      <input id="thr" type="number" min="0" max="100" step="any" value="10" required><span aria-hidden="true">%</span>
       <p class="fraco" data-t="threshold_hint"></p>
     </details>
   </section>
 
-  <details class="sobre">
-    <summary data-t="about">Sobre, limites e créditos</summary>
-    <p class="fraco" data-t="limits">A previsão usa a mesma entrada da decisão, sem gerar uma resposta. O limiar é uma simulação. O piloto foi exploratório e usou pedidos em inglês.</p>
-    <p class="fraco">
-      <a href="https://huggingface.co/eduardoworrel/Qwen3.5-0.8B-Forecast-Refusal-ONNX-S1S2" data-t="card">Modelo, uso e resultados</a> ·
-      <a href="https://github.com/eduardoworrel/s1s2.js/blob/main/spec/FORECAST.md" data-t="spec">Especificação</a> ·
-      <a href="https://huggingface.co/Qwen/Qwen3.5-0.8B">Qwen3.5-0.8B</a> ·
-      <a href="https://huggingface.co/datasets/google/IFEval">IFEval (Apache-2.0)</a>
-    </p>
+  <details class="sobre" id="sobre">
+    <summary data-t="h_about">Sobre, limites e créditos</summary>
+    <h2 data-t="h_what">Sobre</h2>
+    <ul id="what-list"></ul>
+    <h2 data-t="h_limits">Limites</h2>
+    <ul id="limits"></ul>
+    <h2 data-t="h_credits">Créditos e licenças</h2>
+    <ul id="credits"></ul>
   </details>
 </div>
 </main>
