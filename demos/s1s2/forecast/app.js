@@ -3,18 +3,17 @@ const copy = {
     nav_posts: "Posts", nav_about: "Sobre", foot_write: "Escreva um post", foot_map: "Contribua com o mapa",
     back: "Todas as demos", title: "Previsão de recusa",
     lede: "Estime a probabilidade de o modelo recusar um pedido antes de gerar a resposta.",
-    cases_title: "Quando vale pular a geração?",
-    cases_intro: "Se o modelo provavelmente vai recusar, o aplicativo pode avisar ou encaminhar o pedido sem gastar tempo gerando uma resposta. Veja três casos medidos com um limiar ilustrativo de 10%.",
-    cases_note: "As previsões vieram do teste WebGPU. As respostas de referência foram geradas separadamente no piloto, sem o filtro.",
-    use: "Usar este pedido", threshold_hint: "Diminuir o limiar pula mais respostas. Isso pode evitar recusas, mas também cortar respostas úteis.",
-    recorded: (p) => `Previsão registrada de recusa: ${p}.`,
-    observed: "Na resposta de referência",
+    examples: "Escolha um exemplo", threshold_hint: "Um limiar menor pula mais respostas, inclusive algumas úteis.",
+    reference: "Resposta de referência", correct_skip: "O filtro teria evitado gerar essa recusa.",
+    false_skip: "O filtro teria pulado uma tentativa de resposta.",
+    missed: "O filtro deixaria esta recusa passar.", correct_allow: "O filtro deixaria esta resposta passar.",
     model: "Modelo", requirements: "Experimental. Use Chrome no computador com WebGPU. A primeira carga baixa cerca de 555 MB.",
     load: "Carregar modelo", loading: "Carregando o modelo…", ready: "Modelo pronto.",
     failed: "Não foi possível carregar o modelo", unsupported: "Abra a demo no Chrome em um computador com WebGPU.",
-    request: "Pedido", prompt: "Escreva um pedido em inglês", threshold: "Limiar para simular o filtro", run: "Estimar recusa",
-    empty: "Escreva um pedido em inglês.", invalid: "Use um limiar entre 0 e 1.", reading: "Estimando a probabilidade…",
+    request: "Pedido", prompt: "Ou escreva um pedido em inglês", threshold: "Ajustar limiar", threshold_label: "Limiar de recusa (0 a 100%)", run: "Estimar recusa",
+    empty: "Escreva um pedido em inglês.", invalid: "Use um limiar entre 0 e 100%.", reading: "Estimando a probabilidade…",
     result: "Probabilidade estimada de recusa", skip: "O filtro pularia a geração.", allow: "O filtro permitiria a geração.",
+    threshold_status: (p) => `Simulação com limiar de ${p}.`,
     cost: (n) => `${n} tokens extras de prefill`,
     about: "Sobre, limites e créditos",
     limits: "A previsão usa a mesma entrada da decisão, sem gerar uma resposta. O limiar é uma simulação. O piloto foi exploratório e usou pedidos em inglês.",
@@ -24,73 +23,60 @@ const copy = {
     nav_posts: "Posts", nav_about: "About", foot_write: "Write a post", foot_map: "Contribute to the map",
     back: "All demos", title: "Refusal forecast",
     lede: "Estimate whether the model would refuse a request before it generates an answer.",
-    cases_title: "When is it worth skipping generation?",
-    cases_intro: "If the model is likely to refuse, an app can notify the user or reroute the request without spending time generating a reply. These three measured cases use an illustrative 10% threshold.",
-    cases_note: "The forecasts came from the WebGPU test. Reference replies were generated separately in the pilot with the gate off.",
-    use: "Use this request", threshold_hint: "A lower threshold skips more replies. It can avoid refusals and also cut off useful answers.",
-    recorded: (p) => `Recorded refusal forecast: ${p}.`,
-    observed: "In the reference reply",
+    examples: "Choose an example", threshold_hint: "A lower threshold skips more replies, including some useful ones.",
+    reference: "Reference reply", correct_skip: "The gate would have avoided generating that refusal.",
+    false_skip: "The gate would have skipped an attempt to answer.",
+    missed: "The gate would have let this refusal through.", correct_allow: "The gate would have let this answer through.",
     model: "Model", requirements: "Experimental. Use desktop Chrome with WebGPU. The first load downloads about 555 MB.",
     load: "Load model", loading: "Loading the model…", ready: "Model ready.",
     failed: "Could not load the model", unsupported: "Open this demo in desktop Chrome with WebGPU.",
-    request: "Request", prompt: "Enter a request in English", threshold: "Threshold for simulating the gate", run: "Estimate refusal",
-    empty: "Enter a request in English.", invalid: "Use a threshold between 0 and 1.", reading: "Estimating probability…",
+    request: "Request", prompt: "Or enter a request in English", threshold: "Adjust threshold", threshold_label: "Refusal threshold (0 to 100%)", run: "Estimate refusal",
+    empty: "Enter a request in English.", invalid: "Use a threshold between 0 and 100%.", reading: "Estimating probability…",
     result: "Estimated refusal probability", skip: "The gate would skip generation.", allow: "The gate would allow generation.",
+    threshold_status: (p) => `Simulation at a ${p} threshold.`,
     cost: (n) => `${n} extra prefill tokens`,
     about: "About, limits and credits",
     limits: "The forecast reads the same input as the decision without generating an answer. The threshold simulates a gate. The exploratory pilot used English requests.",
     card: "Model, usage and results", spec: "Specification",
   },
 };
-// IFEval prompts (Apache-2.0). Scores and reference replies come from the pilot and the Chrome smoke test.
+// IFEval prompts (Apache-2.0) and reference replies observed in the pilot.
 const cases = [
   {
     "input": "Can you provide me with the timetable for the next train to London? Please respond in less than 6 sentences.",
-    "p": 0.12843,
     "title": {
       "pt-BR": "Horário do próximo trem",
       "en": "Next train timetable"
     },
-    "outcome": {
-      "pt-BR": "Pular teria evitado gerar essa recusa.",
-      "en": "Skipping would have avoided generating that refusal."
-    },
     "reference": {
       "pt-BR": "O modelo disse que não tinha acesso a horários em tempo real.",
       "en": "The model said it had no access to live timetables."
-    }
+    },
+    "refused": true
   },
   {
     "input": "A colt is 5 feet tall. It will grow 6 inches every month. How tall will it be in 3 years? Think step-by-step, then give your answer. Separate your thinking and the final answer by a line with just three \"*\" symbols: ***\nAt the end of your response, please explicitly add a postscript starting with P.P.S",
-    "p": 0.15881,
     "title": {
       "pt-BR": "Problema de matemática",
       "en": "Math problem"
     },
-    "outcome": {
-      "pt-BR": "O filtro teria pulado uma tentativa útil.",
-      "en": "The gate would have skipped a useful attempt."
-    },
     "reference": {
       "pt-BR": "O modelo começou a resolver o problema.",
       "en": "The model started solving the problem."
-    }
+    },
+    "refused": false
   },
   {
     "input": "I have a golden retriever and a poodle. Is the poodle bigger than the golden retriever? Choose from the following: ('My answer is yes.', 'My answer is no.', 'My answer is maybe.') -- please include the exact phrase in your response.",
-    "p": 0.04349,
     "title": {
       "pt-BR": "Comparação entre cães",
       "en": "Comparing dogs"
     },
-    "outcome": {
-      "pt-BR": "O filtro teria deixado essa resposta passar.",
-      "en": "The gate would have allowed that reply."
-    },
     "reference": {
       "pt-BR": "O modelo respondeu à pergunta.",
       "en": "The model answered the question."
-    }
+    },
+    "refused": false
   }
 ];
 
@@ -115,30 +101,26 @@ toggle.textContent = en ? "Português" : "English";
 
 let model;
 let probability;
+let reference;
+
+function resetResult() {
+  probability = undefined;
+  $("out").hidden = true;
+  $("run-status").textContent = "";
+}
 
 for (const example of cases) {
-  const item = document.createElement("li");
-  const title = document.createElement("strong");
-  title.textContent = example.title[lang];
-  const recorded = document.createElement("p");
-  const decision = example.p > 0.1 ? t.skip : t.allow;
-  recorded.textContent = `${t.recorded(formatter.format(example.p))} ${decision}`;
-  const observed = document.createElement("p");
-  observed.className = "fraco";
-  observed.textContent = `${example.reference[lang]} ${example.outcome[lang]}`;
-  const use = document.createElement("button");
-  use.type = "button";
-  use.textContent = t.use;
-  use.onclick = () => {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.setAttribute("aria-pressed", "false");
+  button.textContent = example.title[lang];
+  button.onclick = () => {
+    for (const other of $("cases").children) other.setAttribute("aria-pressed", String(other === button));
     $("prompt").value = example.input;
-    $("thr").value = "0.1";
-    $("out").hidden = true;
-    $("run-status").textContent = "";
-    if (model) $("prompt").focus();
-    else $("load").focus();
+    resetResult();
+    $("prompt").focus();
   };
-  item.append(title, recorded, observed, use);
-  $("cases").append(item);
+  $("cases").append(button);
 }
 $("load").onclick = async () => {
   if (!navigator.gpu) {
@@ -169,21 +151,38 @@ $("load").onclick = async () => {
 function updateGate() {
   if (probability === undefined) return;
   const threshold = $("thr");
-  $("gate").textContent = !threshold.checkValidity()
-    ? t.invalid
-    : probability > threshold.valueAsNumber ? t.skip : t.allow;
+  if (!threshold.checkValidity()) {
+    $("gate").textContent = t.invalid;
+    $("comparison").textContent = reference ? reference.reference[lang] : "";
+    return;
+  }
+  const limit = threshold.valueAsNumber / 100;
+  const skip = probability > limit;
+  $("gate").textContent = `${t.threshold_status(formatter.format(limit))} ${skip ? t.skip : t.allow}`;
+  if (reference) {
+    const impact = skip
+      ? reference.refused ? t.correct_skip : t.false_skip
+      : reference.refused ? t.missed : t.correct_allow;
+    $("comparison").textContent = `${t.reference}: ${reference.reference[lang]} ${impact}`;
+  } else {
+    $("comparison").textContent = "";
+  }
 }
 
 $("thr").addEventListener("input", updateGate);
-$("prompt").addEventListener("input", () => { $("out").hidden = true; });
+$("prompt").addEventListener("input", () => {
+  for (const button of $("cases").children) button.setAttribute("aria-pressed", "false");
+  resetResult();
+});
 $("run").onclick = async () => {
   const input = $("prompt").value.trim();
-  if (!input || !$("thr").checkValidity()) {
-    $("run-status").textContent = input ? t.invalid : t.empty;
+  if (!input) {
+    $("run-status").textContent = t.empty;
     return;
   }
   $("run").disabled = true;
   $("prompt").disabled = true;
+  for (const button of $("cases").children) button.disabled = true;
   $("out").hidden = true;
   $("run-status").textContent = t.reading;
   try {
@@ -193,8 +192,7 @@ $("run").onclick = async () => {
       $("probability").textContent = formatter.format(probability);
       $("prob-bar").value = probability;
       $("cost").textContent = t.cost(forecast.cost.extraPrefillTokens);
-      const reference = cases.find((example) => example.input === input);
-      $("comparison").textContent = reference ? `${t.observed}: ${reference.reference[lang]}` : "";
+      reference = cases.find((example) => example.input === input);
       updateGate();
       $("out").hidden = false;
     } finally {
@@ -206,5 +204,6 @@ $("run").onclick = async () => {
   } finally {
     $("run").disabled = false;
     $("prompt").disabled = false;
+    for (const button of $("cases").children) button.disabled = false;
   }
 };

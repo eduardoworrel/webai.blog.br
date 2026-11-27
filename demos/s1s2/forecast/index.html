@@ -38,11 +38,11 @@
   .demo button:disabled { opacity: .5; cursor: default; }
   :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   progress { width: 100%; height: .7rem; accent-color: var(--accent); }
-  .casos { list-style: none; margin: 0; padding: 0; display: grid; gap: .8rem; }
-  .casos li { max-width: none; margin: 0; border: 1px solid var(--line); border-radius: 12px; padding: .75rem .9rem; }
-  .casos li p { margin: .2rem 0; }
-  .casos button { margin-top: .5rem; color: var(--accent-ink); background: #fff; border-color: var(--line2); }
-  .casos button:hover:not(:disabled) { color: var(--accent-ink); background: var(--accent-soft); }
+  .exemplos { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+  .exemplos button { color: var(--fg); background: #fff; border-color: var(--line2); min-height: 2.4rem; padding: .45rem .85rem; font-size: .9rem; }
+  .exemplos button:hover:not(:disabled), .exemplos button[aria-pressed=true] { color: var(--accent-ink); background: var(--accent-soft); border-color: var(--accent); }
+  .limiar { margin-top: .6rem; color: var(--fg2); font-size: .95rem; }
+  .limiar summary { cursor: pointer; color: var(--accent); font-weight: 600; }
   .destaque { background: var(--accent-soft); border-color: var(--accent); }
   .vence { font-size: 2.2rem; line-height: 1.1; font-weight: 700; font-variant-numeric: tabular-nums; }
   .sobre { padding: .8rem 1.3rem; }
@@ -69,13 +69,6 @@
   <h1 data-t="title">Previsão de recusa</h1>
   <p class="lede" data-t="lede">Estime a probabilidade de o modelo recusar um pedido antes de gerar a resposta.</p>
 
-  <section class="painel" aria-labelledby="cases-title">
-    <h2 id="cases-title" data-t="cases_title"></h2>
-    <p data-t="cases_intro"></p>
-    <ul class="casos" id="cases"></ul>
-    <p class="fraco" data-t="cases_note"></p>
-  </section>
-
   <section class="painel" aria-labelledby="model-title">
     <h2 id="model-title" data-t="model">Modelo</h2>
     <p data-t="requirements">Experimental. Use Chrome no computador com WebGPU. A primeira carga baixa cerca de 555 MB.</p>
@@ -86,16 +79,11 @@
 
   <section class="painel" id="question" aria-labelledby="prompt-title" hidden>
     <h2 id="prompt-title" data-t="request">Pedido</h2>
-    <label class="campo-rot" for="prompt" data-t="prompt">Escreva um pedido em inglês</label>
-    <textarea id="prompt" lang="en" rows="3">List three facts about the Moon.</textarea>
-    <div class="linha">
-      <div>
-        <label class="campo-rot" for="thr" data-t="threshold">Limiar para simular o filtro</label>
-        <input id="thr" type="number" min="0" max="1" step="any" value="0.1" required>
-      </div>
-      <button id="run" type="button" data-t="run">Estimar recusa</button>
-    </div>
-    <p class="fraco" data-t="threshold_hint"></p>
+    <p class="fraco" id="examples-label" data-t="examples">Escolha um exemplo</p>
+    <div class="exemplos" id="cases" role="group" aria-labelledby="examples-label"></div>
+    <label class="campo-rot" for="prompt" data-t="prompt">Ou escreva um pedido em inglês</label>
+    <textarea id="prompt" lang="en" rows="3"></textarea>
+    <p><button id="run" type="button" data-t="run">Estimar recusa</button></p>
     <p id="run-status" class="fraco" role="status" aria-live="polite"></p>
   </section>
 
@@ -106,6 +94,12 @@
     <p id="gate"></p>
     <p id="comparison" class="fraco"></p>
     <p class="fraco" id="cost"></p>
+    <details class="limiar">
+      <summary data-t="threshold">Ajustar limiar</summary>
+      <label class="campo-rot" for="thr" data-t="threshold_label">Limiar de recusa (0 a 100%)</label>
+      <input id="thr" type="number" min="0" max="100" step="any" value="10" required>
+      <p class="fraco" data-t="threshold_hint"></p>
+    </details>
   </section>
 
   <details class="sobre">
