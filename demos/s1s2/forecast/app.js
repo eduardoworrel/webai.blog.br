@@ -24,7 +24,7 @@ const copy = {
       "O modelo publicado foi avaliado em pedidos em inglês, num piloto exploratório. O próprio modelo rotulou as respostas, sem revisão humana.",
       "Em 3 dos 12 pedidos testados, a probabilidade no Chrome ficou acima da diferença tolerada em relação à CPU. O limiar da demo é ilustrativo.",
     ],
-    credits: ["Modelo-base", "Pacote ONNX e model card", "Biblioteca", "Runtime", "Tokenizador", "Pedidos de exemplo", "Referência de pesquisa"],
+    credits: ["Modelo-base", "Pacote ONNX e model card", "Biblioteca", "Runtime", "Tokenizador", "Pedidos de exemplo", "Artigo de Tommy He e Thomas Jiralerspong", "Código e resultados da pesquisa"],
   },
   en: {
     nav_posts: "Posts", nav_about: "About", foot_write: "Write a post", foot_map: "Contribute to the map",
@@ -51,7 +51,7 @@ const copy = {
       "The published model was evaluated on English requests in an exploratory pilot. The model labelled its own replies without human review.",
       "Chrome probabilities exceeded the CPU parity tolerance on 3 of 12 requests. The demo threshold is illustrative.",
     ],
-    credits: ["Base model", "ONNX package and model card", "Library", "Runtime", "Tokenizer", "Example requests", "Research reference"],
+    credits: ["Base model", "ONNX package and model card", "Library", "Runtime", "Tokenizer", "Example requests", "Paper by Tommy He and Thomas Jiralerspong", "Research code and results"],
   },
 };
 // IFEval prompts (Apache-2.0) and reference replies observed in the pilot.
@@ -128,7 +128,8 @@ const credits = [
   ["ONNX Runtime Web 1.31.1", "https://onnxruntime.ai/", "MIT"],
   ["Transformers.js 4.3.1", "https://github.com/huggingface/transformers.js", "Apache-2.0"],
   ["IFEval", "https://huggingface.co/datasets/google/IFEval", "Apache-2.0"],
-  ["He e Jiralerspong (2026)", "https://arxiv.org/abs/2611.06837v2"],
+  ["Context–Answer Metamodels (2026)", "https://arxiv.org/abs/2611.06837v2"],
+  ["Tufalabs/context-answer-metamodels", "https://github.com/Tufalabs/context-answer-metamodels"],
 ];
 credits.forEach(([label, href, license], index) => {
   const item = document.createElement("li");
