@@ -1,92 +1,119 @@
-// Read one decision prefill. The example predicts a standalone reply, as in the pilot.
-import * as ort from "onnxruntime-web/webgpu";
-import * as tjs from "@huggingface/transformers";
-import { S1S2 } from "./lib/index.js";
-
+const copy = {
+  "pt-BR": {
+    nav_posts: "Posts", nav_about: "Sobre", foot_write: "Escreva um post", foot_map: "Contribua com o mapa",
+    back: "Todas as demos", title: "Previsão de recusa",
+    lede: "Estime a probabilidade de o modelo recusar um pedido antes de gerar a resposta.",
+    model: "Modelo", requirements: "Experimental. Use Chrome no computador com WebGPU. A primeira carga baixa cerca de 555 MB.",
+    load: "Carregar modelo", loading: "Carregando o modelo…", ready: "Modelo pronto.",
+    failed: "Não foi possível carregar o modelo", unsupported: "Abra a demo no Chrome em um computador com WebGPU.",
+    request: "Pedido", prompt: "Escreva um pedido em inglês", threshold: "Limiar para simular o filtro", run: "Estimar recusa",
+    empty: "Escreva um pedido em inglês.", invalid: "Use um limiar entre 0 e 1.", reading: "Estimando a probabilidade…",
+    result: "Probabilidade estimada de recusa", skip: "O filtro pularia a geração.", allow: "O filtro permitiria a geração.",
+    cost: (n) => `${n} tokens extras de prefill`,
+    about: "Sobre, limites e créditos",
+    limits: "A previsão usa a mesma entrada da decisão, sem gerar uma resposta. O limiar é uma simulação. O piloto foi exploratório e usou pedidos em inglês.",
+    card: "Modelo, uso e resultados", spec: "Especificação",
+  },
+  en: {
+    nav_posts: "Posts", nav_about: "About", foot_write: "Write a post", foot_map: "Contribute to the map",
+    back: "All demos", title: "Refusal forecast",
+    lede: "Estimate whether the model would refuse a request before it generates an answer.",
+    model: "Model", requirements: "Experimental. Use desktop Chrome with WebGPU. The first load downloads about 555 MB.",
+    load: "Load model", loading: "Loading the model…", ready: "Model ready.",
+    failed: "Could not load the model", unsupported: "Open this demo in desktop Chrome with WebGPU.",
+    request: "Request", prompt: "Enter a request in English", threshold: "Threshold for simulating the gate", run: "Estimate refusal",
+    empty: "Enter a request in English.", invalid: "Use a threshold between 0 and 1.", reading: "Estimating probability…",
+    result: "Estimated refusal probability", skip: "The gate would skip generation.", allow: "The gate would allow generation.",
+    cost: (n) => `${n} extra prefill tokens`,
+    about: "About, limits and credits",
+    limits: "The forecast reads the same input as the decision without generating an answer. The threshold simulates a gate. The exploratory pilot used English requests.",
+    card: "Model, usage and results", spec: "Specification",
+  },
+};
+const manifest = "https://huggingface.co/eduardoworrel/Qwen3.5-0.8B-Forecast-Refusal-ONNX-S1S2/resolve/630440abeffa0a128fba936a35c2d0577cdb6838/manifest.json";
+const question = { name: "refuse", type: "predicate", instructions: "Will your answer refuse to do what this request asks?" };
 const $ = (id) => document.getElementById(id);
-const status = (message) => { $("status").textContent = message; };
-const QUESTION = { name: "q", type: "predicate", instructions: "Will your answer refuse to do what this request asks?" };
-let model = null;
-let loaded = "";
+const lang = (new URLSearchParams(location.search).get("lang") ?? navigator.language).toLowerCase().startsWith("pt") ? "pt-BR" : "en";
+const t = copy[lang];
+const formatter = new Intl.NumberFormat(lang, { style: "percent", maximumFractionDigits: 1 });
+document.documentElement.lang = lang;
+document.title = `${t.title} · webai.blog.br`;
+for (const element of document.querySelectorAll("[data-t]")) element.textContent = t[element.dataset.t];
+const en = lang === "en";
+$("home").href = $("foot-home").href = en ? "/en/" : "/";
+document.querySelector("nav a[data-t='nav_posts']").href = $("home").href;
+$("about").href = en ? "/en/about.html" : "/sobre.html";
+$("back").href = `../?lang=${lang}`;
+const toggle = $("trocar");
+toggle.lang = toggle.hreflang = en ? "pt-BR" : "en";
+toggle.href = `?lang=${toggle.lang}`;
+toggle.textContent = en ? "Português" : "English";
 
-ort.env.wasm.wasmPaths = new URL(document.body.dataset.ortBase ?? "./vendor/ort/", location.href).href;
-
-async function load(url) {
-  if (model && loaded === url.href) return model;
-  await model?.dispose();
-  model = null;
-
-  const local = url.href === new URL("./model/manifest.json", location.href).href;
-  let options = {};
-  if (local) {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`Manifest HTTP ${response.status}`);
-    const manifest = await response.json();
-    const base = new URL(".", url).href;
-    const repos = [manifest.tokenizer.repo, ...Object.values(manifest.builds).map((b) => b.repo)];
-    if (manifest.forecast?.head.repo) repos.push(manifest.forecast.head.repo);
-    // serve.mjs verifies the files before making this endpoint available.
-    options = { manifest, baseUrls: Object.fromEntries(repos.map((repo) => [repo, base])), allowUnverified: true };
+let model;
+let probability;
+$("load").onclick = async () => {
+  if (!navigator.gpu) {
+    $("status").textContent = t.unsupported;
+    return;
   }
-
-  const next = await S1S2.load({ manifest: url.href, ...options, modules: { ort, transformers: tjs }, device: "webgpu", cpuFallback: false, onStatus: status });
+  $("load").disabled = true;
+  $("status").textContent = t.loading;
+  $("loading").hidden = false;
   try {
-    if (next.forecastUnavailable) throw new Error(next.forecastUnavailable);
-    $("beh").replaceChildren(...next.forecastBehaviors.map((name) => new Option(name, name)));
+    const [ort, transformers, { S1S2 }] = await Promise.all([
+      import("onnxruntime-web/webgpu"), import("@huggingface/transformers"), import("./lib/index.js"),
+    ]);
+    ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.1/dist/";
+    model = await S1S2.load({ manifest, modules: { ort, transformers }, device: "webgpu", cpuFallback: false });
+    $("status").textContent = t.ready;
+    $("load").hidden = true;
+    $("question").hidden = false;
+    $("prompt").focus();
   } catch (error) {
-    await next.dispose();
-    throw error;
+    $("status").textContent = `${t.failed}. ${error.message}`;
+  } finally {
+    $("loading").hidden = true;
+    $("load").disabled = false;
   }
-  model = next;
-  loaded = url.href;
-  return model;
+};
+
+function updateGate() {
+  if (probability === undefined) return;
+  const threshold = $("thr");
+  $("gate").textContent = !threshold.checkValidity()
+    ? t.invalid
+    : probability > threshold.valueAsNumber ? t.skip : t.allow;
 }
 
-function renderForecast(behaviors) {
-  const rows = Object.entries(behaviors).map(([name, value]) => {
-    const row = document.createElement("div");
-    row.className = "b";
-    const label = document.createElement("span");
-    label.textContent = name;
-    const bar = document.createElement("progress");
-    bar.max = 1;
-    bar.value = value.p;
-    bar.setAttribute("aria-label", name);
-    const number = document.createElement("span");
-    number.textContent = value.p.toFixed(2);
-    row.append(label, bar, number);
-    return row;
-  });
-  $("fc").replaceChildren(...rows);
-}
-
+$("thr").addEventListener("input", updateGate);
+$("prompt").addEventListener("input", () => { $("out").hidden = true; });
 $("run").onclick = async () => {
+  const input = $("prompt").value.trim();
+  if (!input || !$("thr").checkValidity()) {
+    $("run-status").textContent = input ? t.invalid : t.empty;
+    return;
+  }
   $("run").disabled = true;
+  $("prompt").disabled = true;
   $("out").hidden = true;
+  $("run-status").textContent = t.reading;
   try {
-    const prompt = $("prompt").value.trim();
-    if (!prompt) throw new Error("Enter a prompt.");
-    const threshold = $("thr").valueAsNumber;
-    if (!$("thr").checkValidity()) throw new Error("Use a threshold between 0 and 1.");
-    const m = await load(new URL($("manifest").value, location.href));
-    status("Reading the decision prefill…");
-    const { forecast, session } = await m.forecast({ input: prompt, questions: [QUESTION] });
+    const { forecast, session } = await model.forecast({ input, questions: [question] });
     try {
-      renderForecast(forecast.behaviors);
-      $("cost").textContent = `Layer ${forecast.layer} · ${forecast.cost.extraPrefillTokens} extra prefill tokens`;
-      const name = $("beh").value;
-      const p = forecast.behaviors[name].p;
+      probability = forecast.behaviors.refuse.p;
+      $("probability").textContent = formatter.format(probability);
+      $("prob-bar").value = probability;
+      $("cost").textContent = t.cost(forecast.cost.extraPrefillTokens);
+      updateGate();
       $("out").hidden = false;
-      $("gate").textContent = p > threshold
-        ? `The estimate exceeds the threshold of ${threshold}. The gate would skip generation.`
-        : `The estimate is at or below the threshold of ${threshold}. The gate would allow generation.`;
     } finally {
       await session.dispose();
     }
-    status("");
+    $("run-status").textContent = "";
   } catch (error) {
-    status(String(error?.message ?? error));
+    $("run-status").textContent = String(error?.message ?? error);
   } finally {
     $("run").disabled = false;
+    $("prompt").disabled = false;
   }
 };
